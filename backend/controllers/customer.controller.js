@@ -1,0 +1,419 @@
+import { Customer } from "../models/customer.model.js";
+import { addMonths } from "../utils/date.utils.js";
+import { Invoice } from "../models/invoice.model.js";
+// helper to add months safely
+// const addMonths = (date, months) => {
+//   const d = new Date(date);
+//   d.setMonth(d.getMonth() + months);
+//   return d;
+// };
+
+export const createCustomer = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const {
+      name,
+      phone,
+      address,
+      roModel,
+      roBodyType,
+      installationDate,
+      filterPrice = 0,
+      filterPaidAmount = 0,
+      lastServiceDate,
+      filters,
+      location,
+    } = req.body;
+
+    // 1. Basic validation
+    if (!name || !phone || !roModel || !installationDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Required fields missing",
+      });
+    }
+
+    // 2. Initialize filters
+    const initializedFilters = (filters || []).map((f) => ({
+      name: f.name,
+      intervalMonths: f.intervalMonths,
+      lastChangedDate: lastServiceDate
+        ? new Date(lastServiceDate)
+        : new Date(installationDate),
+    }));
+
+    // 3. Decide nextServiceDate (NO assumptions)
+    let nextServiceDate = null;
+
+    if (lastServiceDate) {
+      nextServiceDate = addMonths(lastServiceDate, 6);
+    } else {
+      const install = new Date(installationDate);
+      const now = new Date();
+      const diffDays = (now - install) / (1000 * 60 * 60 * 24);
+
+      if (diffDays <= 30) {
+        nextServiceDate = addMonths(installationDate, 6);
+      }
+    }
+
+    // 4. Create customer
+    const customer = await Customer.create({
+      userId,
+      name,
+      phone,
+      address,
+      roModel,
+      roBodyType,
+      installationDate,
+      filterPrice,
+      filterPaidAmount,
+      filterPaymentStatus: "UNPAID", // derived below
+      lastServiceDate: lastServiceDate || null,
+      nextServiceDate,
+      filters: initializedFilters,
+      location,
+    });
+
+    // 5. Derive payment status
+    let paymentStatus = "UNPAID";
+    if (filterPaidAmount >= filterPrice && filterPrice > 0) {
+      paymentStatus = "PAID";
+    } else if (filterPaidAmount > 0 && filterPaidAmount < filterPrice) {
+      paymentStatus = "PARTIAL";
+    }
+
+    // 6. Create FILTER_SALE invoice (THIS WAS MISSING)
+    if (filterPrice > 0) {
+      await Invoice.create({
+        userId,
+        customerId: customer._id,
+        type: "FILTER_SALE",
+        referenceId: customer._id,
+        items: [
+          {
+            name: `RO Filter (${roModel})`,
+            price: filterPrice,
+          },
+        ],
+        totalAmount: filterPrice,
+        paidAmount: filterPaidAmount,
+        paymentStatus,
+      });
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: "Customer created successfully",
+      customer,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create customer",
+    });
+  }
+};
+
+export const updateCustomerPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { paidAmount } = req.body;
+
+    if (!paidAmount || paidAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid paid amount",
+      });
+    }
+
+    const customer = await Customer.findById(id);
+
+    if (!customer || !customer.isActive) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    // 1. Update customer paid amount
+    customer.filterPaidAmount += paidAmount;
+
+    if (customer.filterPaidAmount >= customer.filterPrice) {
+      customer.filterPaidAmount = customer.filterPrice;
+      customer.filterPaymentStatus = "PAID";
+    } else if (customer.filterPaidAmount > 0) {
+      customer.filterPaymentStatus = "PARTIAL";
+    } else {
+      customer.filterPaymentStatus = "UNPAID";
+    }
+
+    await customer.save();
+
+    // 2. Update existing FILTER_SALE invoice (THIS WAS MISSING)
+    const invoice = await Invoice.findOne({
+      customerId: customer._id,
+      type: "FILTER_SALE",
+    });
+
+    if (invoice) {
+      invoice.paidAmount = customer.filterPaidAmount;
+      invoice.paymentStatus = customer.filterPaymentStatus;
+      await invoice.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment updated successfully",
+      customer,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update payment",
+    });
+  }
+};
+
+export const updateCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const allowedUpdates = [
+      "name",
+      "phone",
+      "address",
+      "roModel",
+      "roBodyType",
+      "location",
+      "isActive",
+    ];
+
+    const updates = {};
+
+    for (const key of allowedUpdates) {
+      if (req.body[key] !== undefined) {
+        updates[key] = req.body[key];
+      }
+    }
+
+    const customer = await Customer.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true },
+    );
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Customer updated successfully",
+      customer,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update customer",
+    });
+  }
+};
+
+//////////////////////////////////////////
+//////////////////////////////////////////
+//////////////////////////////////////////
+//////////////////////////////////////////
+
+export const getCustomers = async (req, res) => {
+  try {
+    // console.log("getting all customers");
+    const {
+      search,
+      status = "active",
+      paymentStatus,
+      serviceStatus,
+    } = req.query;
+
+    const query = {
+      userId: req.userId,
+    };
+
+    // active / inactive filter
+    if (status === "active") query.isActive = true;
+    if (status === "inactive") query.isActive = false;
+
+    // payment status filter
+    if (paymentStatus) {
+      query.filterPaymentStatus = paymentStatus;
+    }
+
+    // search by name or phone
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const customers = await Customer.find(query).sort({ createdAt: -1 });
+
+    const today = new Date();
+
+    const formattedCustomers = customers.map((c) => {
+      let serviceStatusComputed = "NONE";
+      let daysRemaining = null;
+
+      if (c.nextServiceDate) {
+        const diff =
+          (new Date(c.nextServiceDate) - today) / (1000 * 60 * 60 * 24);
+
+        daysRemaining = Math.ceil(diff);
+
+        if (daysRemaining < 0) serviceStatusComputed = "OVERDUE";
+        else if (daysRemaining <= 10) serviceStatusComputed = "UPCOMING";
+        else serviceStatusComputed = "OK";
+      }
+
+      return {
+        id: c._id,
+        name: c.name,
+        phone: c.phone,
+        address: c.address,
+        roModel: c.roModel,
+
+        filterPaymentStatus: c.filterPaymentStatus,
+        filterPrice: c.filterPrice,
+        filterPaidAmount: c.filterPaidAmount,
+
+        nextServiceDate: c.nextServiceDate,
+        serviceStatus: serviceStatusComputed,
+        daysRemaining,
+
+        location: c.location,
+        isActive: c.isActive,
+      };
+    });
+
+    // optional serviceStatus filter (after computation)
+    const finalCustomers = serviceStatus
+      ? formattedCustomers.filter((c) => c.serviceStatus === serviceStatus)
+      : formattedCustomers;
+
+    res.status(200).json({
+      success: true,
+      count: finalCustomers.length,
+      customers: finalCustomers,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch customers",
+    });
+  }
+};
+///// get one customer
+// import { Customer } from "../models/customer.model.js";
+import { Service } from "../models/service.model.js";
+
+export const getCustomerById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    // 1. Fetch customer
+    const customer = await Customer.findOne({
+      _id: id,
+      userId,
+    });
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    // 2. Compute service status
+    let serviceStatus = "NONE";
+    let daysRemaining = null;
+
+    if (customer.nextServiceDate) {
+      const diff =
+        (new Date(customer.nextServiceDate) - new Date()) /
+        (1000 * 60 * 60 * 24);
+
+      daysRemaining = Math.ceil(diff);
+
+      if (daysRemaining < 0) serviceStatus = "OVERDUE";
+      else if (daysRemaining <= 10) serviceStatus = "UPCOMING";
+      else serviceStatus = "OK";
+    }
+
+    // 3. Fetch service history (latest first, lightweight)
+    const services = await Service.find({
+      customerId: customer._id,
+    })
+      .sort({ serviceDate: -1 })
+      .select("serviceDate serviceType totalServiceAmount")
+      .limit(20);
+
+    // 4. Build response
+    res.status(200).json({
+      success: true,
+      customer: {
+        id: customer._id,
+
+        // Basic info
+        name: customer.name,
+        phone: customer.phone,
+        address: customer.address,
+        isActive: customer.isActive,
+
+        // RO info
+        roModel: customer.roModel,
+        roBodyType: customer.roBodyType,
+        installationDate: customer.installationDate,
+
+        // Location (optional)
+        location: customer.location,
+
+        // Payment summary
+        payment: {
+          filterPrice: customer.filterPrice,
+          paidAmount: customer.filterPaidAmount,
+          pendingAmount: customer.filterPrice - customer.filterPaidAmount,
+          status: customer.filterPaymentStatus,
+        },
+
+        // Service status
+        service: {
+          lastServiceDate: customer.lastServiceDate,
+          nextServiceDate: customer.nextServiceDate,
+          serviceStatus,
+          daysRemaining,
+        },
+
+        // Filters status
+        filters: customer.filters,
+
+        // Service history (lightweight)
+        serviceHistory: services,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch customer details",
+    });
+  }
+};
