@@ -1,30 +1,36 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import api from "../../api/apiClient";
 import Loading from "../../components/Loading";
 import ErrorState from "../../components/ErrorState";
 
 const CustomersList = () => {
   const navigate = useNavigate();
+
   const [customers, setCustomers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [hoveredId, setHoveredId] = useState(null);
-
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  /* Handle resize */
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
+
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const isMobile = windowWidth < 768;
 
+  /* Load customers */
   useEffect(() => {
     const loadCustomers = async () => {
       try {
         const res = await api.get("/api/customers");
+
         if (Array.isArray(res.customers)) {
           setCustomers(res.customers);
         } else {
@@ -36,6 +42,7 @@ const CustomersList = () => {
         setLoading(false);
       }
     };
+
     loadCustomers();
   }, []);
 
@@ -50,10 +57,15 @@ const CustomersList = () => {
 
   const getStatusStyle = (status) => {
     const s = status?.toLowerCase();
-    if (s === "paid" || s === "completed" || s === "active")
+
+    if (s === "paid" || s === "completed" || s === "active") {
       return { bg: "#dcfce7", text: "#166534" };
-    if (s === "pending" || s === "due")
+    }
+
+    if (s === "pending" || s === "due") {
       return { bg: "#fee2e2", text: "#991b1b" };
+    }
+
     return { bg: "#fef3c7", text: "#92400e" };
   };
 
@@ -64,6 +76,7 @@ const CustomersList = () => {
       padding: isMobile ? "20px 15px" : "40px 20px",
       fontFamily: "'Segoe UI', Roboto, sans-serif",
     },
+
     headerCard: {
       background: "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)",
       borderRadius: "16px",
@@ -75,6 +88,7 @@ const CustomersList = () => {
       marginLeft: "auto",
       marginRight: "auto",
     },
+
     searchSection: {
       maxWidth: "1000px",
       margin: "0 auto 30px auto",
@@ -82,6 +96,7 @@ const CustomersList = () => {
       gap: "10px",
       flexDirection: isMobile ? "column" : "row",
     },
+
     searchInput: {
       flex: 1,
       padding: "14px 20px",
@@ -91,6 +106,7 @@ const CustomersList = () => {
       outline: "none",
       boxShadow: "0 4px 6px rgba(0,0,0,0.02)",
     },
+
     addButton: {
       padding: "14px 24px",
       borderRadius: "12px",
@@ -101,6 +117,7 @@ const CustomersList = () => {
       cursor: "pointer",
       whiteSpace: "nowrap",
     },
+
     listGrid: {
       display: "grid",
       gridTemplateColumns: isMobile
@@ -110,6 +127,7 @@ const CustomersList = () => {
       maxWidth: "1000px",
       margin: "0 auto",
     },
+
     customerCard: (id) => ({
       backgroundColor: "white",
       borderRadius: "12px",
@@ -123,18 +141,21 @@ const CustomersList = () => {
           ? "0 10px 20px rgba(30, 64, 175, 0.1)"
           : "0 4px 6px rgba(0,0,0,0.02)",
     }),
+
     name: {
       fontSize: "18px",
       fontWeight: "700",
       color: "#1e3a8a",
       marginBottom: "4px",
     },
+
     phone: {
       color: "#64748b",
       fontSize: "14px",
       marginBottom: "15px",
       display: "block",
     },
+
     badgeContainer: {
       display: "flex",
       gap: "8px",
@@ -142,6 +163,7 @@ const CustomersList = () => {
       borderTop: "1px solid #f1f5f9",
       paddingTop: "12px",
     },
+
     badge: (status) => ({
       padding: "4px 10px",
       borderRadius: "20px",
@@ -151,6 +173,7 @@ const CustomersList = () => {
       backgroundColor: getStatusStyle(status).bg,
       color: getStatusStyle(status).text,
     }),
+
     viewButton: {
       marginTop: "12px",
       padding: "8px 12px",
@@ -181,6 +204,7 @@ const CustomersList = () => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+
         <button
           style={styles.addButton}
           onClick={() => navigate("/customers/new")}
@@ -195,7 +219,7 @@ const CustomersList = () => {
             style={{
               textAlign: "center",
               color: "#64748b",
-              gridColumn: "1/-1",
+              gridColumn: "1 / -1",
             }}
           >
             No customers found matching your search.

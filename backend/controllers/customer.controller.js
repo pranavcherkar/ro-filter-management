@@ -1,6 +1,7 @@
 import { Customer } from "../models/customer.model.js";
 import { addMonths } from "../utils/date.utils.js";
 import { Invoice } from "../models/invoice.model.js";
+import { ROModelInventory } from "../models/roModelInventory.model.js";
 // helper to add months safely
 // const addMonths = (date, months) => {
 //   const d = new Date(date);
@@ -26,7 +27,7 @@ export const createCustomer = async (req, res) => {
       location,
     } = req.body;
 
-    // 1. Basic validation
+    // 1️⃣ Basic validation
     if (!name || !phone || !roModel || !installationDate) {
       return res.status(400).json({
         success: false,
@@ -34,7 +35,24 @@ export const createCustomer = async (req, res) => {
       });
     }
 
-    // 2. Initialize filters
+    // 2️⃣ Check RO model stock (BLOCK if 0)
+    const roStock = await ROModelInventory.findOne({
+      userId,
+      modelName: roModel,
+    });
+
+    if (!roStock || roStock.quantity <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Selected RO model is out of stock",
+      });
+    }
+
+    // Deduct stock
+    roStock.quantity -= 1;
+    await roStock.save();
+
+    // 3️⃣ Initialize filters
     const initializedFilters = (filters || []).map((f) => ({
       name: f.name,
       intervalMonths: f.intervalMonths,
@@ -43,7 +61,7 @@ export const createCustomer = async (req, res) => {
         : new Date(installationDate),
     }));
 
-    // 3. Decide nextServiceDate (NO assumptions)
+    // 4️⃣ Decide nextServiceDate
     let nextServiceDate = null;
 
     if (lastServiceDate) {
@@ -58,7 +76,7 @@ export const createCustomer = async (req, res) => {
       }
     }
 
-    // 4. Create customer
+    // 5️⃣ Create customer
     const customer = await Customer.create({
       userId,
       name,
@@ -69,14 +87,14 @@ export const createCustomer = async (req, res) => {
       installationDate,
       filterPrice,
       filterPaidAmount,
-      filterPaymentStatus: "UNPAID", // derived below
+      filterPaymentStatus: "UNPAID",
       lastServiceDate: lastServiceDate || null,
       nextServiceDate,
       filters: initializedFilters,
       location,
     });
 
-    // 5. Derive payment status
+    // 6️⃣ Derive payment status
     let paymentStatus = "UNPAID";
     if (filterPaidAmount >= filterPrice && filterPrice > 0) {
       paymentStatus = "PAID";
@@ -84,7 +102,7 @@ export const createCustomer = async (req, res) => {
       paymentStatus = "PARTIAL";
     }
 
-    // 6. Create FILTER_SALE invoice (THIS WAS MISSING)
+    // 7️⃣ Create FILTER_SALE invoice
     if (filterPrice > 0) {
       await Invoice.create({
         userId,
@@ -116,7 +134,7 @@ export const createCustomer = async (req, res) => {
     });
   }
 };
-
+// update payment of customer///////
 export const updateCustomerPayment = async (req, res) => {
   try {
     const { id } = req.params;

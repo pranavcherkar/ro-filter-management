@@ -1,10 +1,8 @@
-/* ServicesList.css */
-
 .services-wrapper {
   padding: 20px;
   max-width: 1100px;
   margin: 0 auto;
-  font-family: 'Segoe UI', Roboto, sans-serif;
+  font-family: "Segoe UI", Roboto, sans-serif;
   background-color: #f0f9ff;
   min-height: 100vh;
 }
@@ -119,6 +117,11 @@
 
 /* Mobile Adjustments */
 @media (max-width: 600px) {
-  .services-wrapper { padding: 15px; }
-  .service-card { grid-template-columns: 1fr; }
+  .services-wrapper {
+    padding: 15px;
+  }
+
+  .service-card {
+    grid-template-columns: 1fr;
+  }
 }

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import api from "../api/apiClient";
 import Loading from "../components/Loading";
 import ErrorState from "../components/ErrorState";
-import "../styles/cusForm.css"; // Import the CSS file
+import "../styles/cusForm.css";
 
 const CustomerForm = () => {
   const { id } = useParams();
@@ -25,6 +25,7 @@ const CustomerForm = () => {
     initialPaidAmount: "",
     lastServiceDate: "",
     location: "",
+    isActive: true,
   });
 
   // Load customer for edit
@@ -34,7 +35,8 @@ const CustomerForm = () => {
     const loadCustomer = async () => {
       try {
         const res = await api.get(`/api/customers/${id}`);
-        const customer = res?.data?.customer || res?.data || res?.customer;
+        const customer =
+          res?.data?.customer || res?.data || res?.customer || res;
 
         if (!customer) throw new Error("Customer not found");
 
@@ -50,6 +52,7 @@ const CustomerForm = () => {
           lastServiceDate:
             customer.service?.lastServiceDate?.slice(0, 10) || "",
           location: customer.location || "",
+          isActive: customer.isActive ?? true,
         });
       } catch (err) {
         setError(err.message || "Failed to load customer");
@@ -62,7 +65,8 @@ const CustomerForm = () => {
   }, [id, isEdit]);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
   };
 
   const handleSubmit = async (e) => {
@@ -109,6 +113,7 @@ const CustomerForm = () => {
                   onChange={handleChange}
                   className="form-input"
                   placeholder="Enter name"
+                  required
                 />
               </div>
               <div className="form-group">
@@ -119,6 +124,7 @@ const CustomerForm = () => {
                   onChange={handleChange}
                   className="form-input"
                   placeholder="Phone number"
+                  required
                 />
               </div>
             </div>
@@ -189,6 +195,8 @@ const CustomerForm = () => {
                   value={form.filterPrice}
                   disabled={isEdit}
                   onChange={handleChange}
+                  onWheel={(e) => e.target.blur()} // 🔒 disables scroll
+                  inputMode="numeric"
                   className="form-input"
                 />
               </div>
@@ -201,6 +209,8 @@ const CustomerForm = () => {
                     name="initialPaidAmount"
                     value={form.initialPaidAmount}
                     onChange={handleChange}
+                    onWheel={(e) => e.target.blur()}
+                    inputMode="numeric"
                     className="form-input"
                   />
                 </div>
@@ -217,6 +227,26 @@ const CustomerForm = () => {
                 placeholder="Nearby landmark"
               />
             </div>
+
+            {/* Edit-only: Active / Inactive */}
+            {isEdit && (
+              <div className="form-group">
+                <label className="form-label">Customer Status</label>
+                <select
+                  className="form-input"
+                  value={form.isActive ? "true" : "false"}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      isActive: e.target.value === "true",
+                    })
+                  }
+                >
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+              </div>
+            )}
 
             <button type="submit" disabled={loading} className="submit-btn">
               {loading

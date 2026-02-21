@@ -1,8 +1,3 @@
-.dashboard {
-  min-height: 100vh;
-  background: #f0f9ff;
-}
-
 /* Header */
 .dashboard-header {
   background: linear-gradient(135deg, #6173c7, #764ba2);
@@ -112,6 +107,7 @@
   color: #111827;
 }
 
+/* Secondary button */
 .btn-2 {
   background: linear-gradient(135deg, #115579, #365d9b);
   color: white;
@@ -125,6 +121,39 @@
   transition: transform 0.2s;
 }
 
-.btn2:hover {
+.btn-2:hover {
   transform: translateY(-2px);
+}
+/* Add these additions to your existing dash.css */
+
+.biz-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 6px 16px;
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.clickable-stat {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.clickable-stat:hover {
+  transform: scale(1.03);
+}
+
+/* Ensure the header text looks balanced */
+.dashboard-header h1 {
+  margin-bottom: 4px;
+}
+
+.dashboard-header p {
+  font-size: 14px;
+  opacity: 0.85;
 }

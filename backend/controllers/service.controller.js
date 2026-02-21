@@ -2,7 +2,7 @@ import { Customer } from "../models/customer.model.js";
 import { Service } from "../models/service.model.js";
 import { Invoice } from "../models/invoice.model.js";
 import { addMonths } from "../utils/date.utils.js";
-
+import { InventoryItem } from "../models/inventoryItem.model.js";
 export const createService = async (req, res) => {
   try {
     const userId = req.userId;
@@ -34,7 +34,7 @@ export const createService = async (req, res) => {
 
     const actualServiceDate = serviceDate ? new Date(serviceDate) : new Date();
 
-    // 1. Calculate service amount
+    // 1️⃣ Calculate service amount
     const totalPartsAmount = replacedParts.reduce(
       (sum, p) => sum + (p.price || 0),
       0,
@@ -42,7 +42,7 @@ export const createService = async (req, res) => {
 
     const totalServiceAmount = totalPartsAmount + serviceCharge;
 
-    // 2. Create service record
+    // 2️⃣ Create service record
     const service = await Service.create({
       userId,
       customerId,
@@ -54,7 +54,20 @@ export const createService = async (req, res) => {
       totalServiceAmount,
     });
 
-    // 3. Update customer ONLY if service affects cycle
+    // 3️⃣ 🔻 Deduct parts inventory (DO NOT BLOCK SERVICE)
+    for (const part of replacedParts) {
+      const inventoryItem = await InventoryItem.findOne({
+        userId,
+        name: part.partName,
+      });
+
+      if (inventoryItem) {
+        inventoryItem.quantity -= 1; // allow negative
+        await inventoryItem.save();
+      }
+    }
+
+    // 4️⃣ Update customer service cycle if required
     if (affectsServiceCycle) {
       if (replacedParts.length > 0) {
         customer.filters = customer.filters.map((filter) => {
@@ -86,7 +99,7 @@ export const createService = async (req, res) => {
 
     await customer.save();
 
-    // 4. CREATE SERVICE INVOICE (THIS WAS MISSING)
+    // 5️⃣ Create SERVICE invoice
     const invoiceItems = [];
 
     replacedParts.forEach((p) => {
@@ -111,7 +124,7 @@ export const createService = async (req, res) => {
         referenceId: service._id,
         items: invoiceItems,
         totalAmount: totalServiceAmount,
-        paidAmount: totalServiceAmount, // assume paid immediately
+        paidAmount: totalServiceAmount, // assumed paid
         paymentStatus: "PAID",
         invoiceDate: actualServiceDate,
       });

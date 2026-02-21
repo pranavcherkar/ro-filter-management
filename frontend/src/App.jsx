@@ -10,7 +10,8 @@ import UpdatePayment from "./pages/Customers/UpdatePayment";
 import AddService from "./pages/Customers/AddService";
 import ServicesList from "./pages/Services/ServicesList";
 import InvoicesList from "./pages/Invoices/InvoicesList";
-
+import UpcomingOverdueServices from "./pages/Customers/UpcomingOverdueServices";
+import InventoryParts from "./pages/Customers/InventoryParts";
 export default function App() {
   return (
     <BrowserRouter>
@@ -90,6 +91,15 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route
+            path="/services/upcoming-overdue"
+            element={
+              <RequireAuth>
+                <UpcomingOverdueServices />
+              </RequireAuth>
+            }
+          />
+          <Route path="/inventory" element={<InventoryParts />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

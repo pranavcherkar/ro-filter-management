@@ -8,6 +8,9 @@ import invoiceRoutes from "./routes/invoice.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import cookieParser from "cookie-parser";
 import connectDB from "./database/db.js";
+import inventoryRoutes from "./routes/inventory.routes.js";
+// import roinventoryRoutes from "./routes/roInventory.routes.js";
+
 dotenv.config();
 
 const app = express();
@@ -19,6 +22,7 @@ app.use(
     credentials: true,
   }),
 );
+app.set("etag", false);
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -29,6 +33,8 @@ app.use("/api/customers", customerRoutes);
 app.use("/api/services", serviceRoutes);
 app.use("/api/invoices", invoiceRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/inventory", inventoryRoutes);
+// app.use("/api/roinventory", roinventoryRoutes);
 
 // Routes
 app.get("/", (req, res) => {

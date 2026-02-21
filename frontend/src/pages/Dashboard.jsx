@@ -2,40 +2,47 @@ import { useEffect, useState } from "react";
 import api from "../api/apiClient";
 import Loading from "../components/Loading";
 import ErrorState from "../components/ErrorState";
-import "../styles/dash.css";
 import { useNavigate } from "react-router-dom";
+import "../styles/dash.css";
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
+  const [user, setUser] = useState(null); // New state for user info
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loadDashboard = async () => {
+    const loadDashboardData = async () => {
+      setLoading(true);
       try {
-        // apiClient already returns response.data
-        const res = await api.get("/api/dashboard/summary");
+        // Fetch both Dashboard Summary and User Profile in parallel
+        const [summaryRes, userRes] = await Promise.all([
+          api.get("/api/dashboard/summary"),
+          api.get("/api/auth/me"),
+        ]);
 
-        // ✅ normalize once
-        const summary = res.summary || {};
+        const summary = summaryRes.summary || {};
 
+        // Set User Info
+        if (userRes.success) {
+          setUser(userRes.user);
+        }
+
+        // Set Stats Info
         setData({
           month: summary.month || "",
-
           money: {
             totalCollected: summary.money?.totalCollected ?? 0,
             pendingAmount: summary.money?.pendingAmount ?? 0,
             filterSales: summary.money?.filterSales ?? 0,
             serviceIncome: summary.money?.serviceIncome ?? 0,
           },
-
           services: {
             servicesDoneThisMonth: summary.services?.servicesDoneThisMonth ?? 0,
             upcomingServices: summary.services?.upcomingServices ?? 0,
             overdueServices: summary.services?.overdueServices ?? 0,
           },
-
           customers: {
             totalActive: summary.customers?.totalActive ?? 0,
           },
@@ -47,7 +54,7 @@ const Dashboard = () => {
       }
     };
 
-    loadDashboard();
+    loadDashboardData();
   }, []);
 
   if (loading) return <Loading />;
@@ -55,46 +62,53 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard">
-      {/* Header */}
+      {/* Personalized Header */}
       <div className="dashboard-header">
-        <h1>RO Service Dashboard</h1>
-        <p>{data.month}</p>
+        <div className="biz-badge">
+          {user?.businessName || "Service Manager"}
+        </div>
+        <h1>Welcome, {user?.firstname || "Owner"}!</h1>
+        <p>Performance Overview for {data.month}</p>
       </div>
 
       <div className="dashboard-content">
         {/* Quick Actions */}
-        <section className="card">
+        <section className="card card-full">
           <h2>Quick Actions</h2>
           <div className="actions">
             <button
               className="primary-btn"
               onClick={() => navigate("/customers/new")}
             >
-              + Add Customer 👤
+              + Add Customer
             </button>
-
             <button className="btn-2" onClick={() => navigate("/customers")}>
-              All Customers 👥
+              View Customers
             </button>
-
             <button
+              className="primary-btn"
               onClick={() => navigate("/services")}
-              className="primary-btn"
             >
-              Services 🔧
+              All Services
             </button>
             <button
-              onClick={() => navigate("/invoices")}
               className="primary-btn"
+              onClick={() => navigate("/invoices")}
             >
-              Invoices 🧾
+              Invoices
+            </button>
+            <button
+              className="primary-btn"
+              onClick={() => navigate("/inventory")}
+            >
+              Inventory
             </button>
           </div>
         </section>
 
         {/* Financial Overview */}
         <section className="card">
-          <h2>Financial Overview</h2>
+          <h2>Revenue Overview</h2>
           <div className="grid">
             <Stat
               label="Total Collected"
@@ -102,7 +116,7 @@ const Dashboard = () => {
               isMoney
             />
             <Stat
-              label="Pending Amount"
+              label="Pending"
               value={data.money.pendingAmount}
               isMoney
               type="warning"
@@ -116,32 +130,37 @@ const Dashboard = () => {
           </div>
         </section>
 
-        {/* Services */}
+        {/* Services Status */}
         <section className="card">
-          <h2>Services This Month</h2>
+          <h2>Service Status</h2>
           <div className="grid">
             <Stat
-              label="Services Done"
+              label="Completed"
               value={data.services.servicesDoneThisMonth}
             />
-            <Stat
-              label="Upcoming"
-              value={data.services.upcomingServices}
-              type="warning"
-            />
-            <Stat
-              label="Overdue"
-              value={data.services.overdueServices}
-              type="danger"
-            />
-          </div>
-        </section>
+            <Stat label="Total Customers" value={data.customers.totalActive} />
 
-        {/* Customers */}
-        <section className="card">
-          <h2>Customers</h2>
-          <div className="grid">
-            <Stat label="Active Customers" value={data.customers.totalActive} />
+            <div
+              className="clickable-stat"
+              onClick={() => navigate("/services/upcoming-overdue")}
+            >
+              <Stat
+                label="Upcoming"
+                value={data.services.upcomingServices}
+                type="warning"
+              />
+            </div>
+
+            <div
+              className="clickable-stat"
+              onClick={() => navigate("/services/upcoming-overdue")}
+            >
+              <Stat
+                label="Overdue"
+                value={data.services.overdueServices}
+                type="danger"
+              />
+            </div>
           </div>
         </section>
       </div>
@@ -149,7 +168,6 @@ const Dashboard = () => {
   );
 };
 
-/* Reusable Stat component */
 const Stat = ({ label, value, type, isMoney = false }) => {
   return (
     <div className={`stat-box ${type || ""}`}>

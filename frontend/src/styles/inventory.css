@@ -1,0 +1,259 @@
+.inv-page-wrapper {
+  background-color: #f0f9ff;
+  min-height: 100vh;
+  padding: 40px 20px;
+  display: flex;
+  justify-content: center; /* TRUE horizontal centering */
+}
+
+.inv-container {
+  width: 100%;
+  max-width: 1100px;
+}
+
+/* Header */
+
+.inv-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.inv-title {
+  color: #1e3a8a;
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.inv-subtitle {
+  color: #64748b;
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+
+/* Toggle */
+
+.inv-toggle-box {
+  background: #cbd5e1;
+  padding: 4px;
+  border-radius: 12px;
+  display: flex;
+}
+
+.inv-toggle-btn {
+  border: none;
+  padding: 8px 18px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  color: #475569;
+  background: transparent;
+}
+
+.inv-toggle-btn.active {
+  background: white;
+  color: #1e40af;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+/* Search */
+
+.inv-search-section {
+  margin-bottom: 25px;
+}
+
+.inv-search-bar {
+  display: flex;
+  align-items: center;
+  background: white;
+  padding: 14px 20px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+}
+
+.inv-search-bar input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  margin-left: 12px;
+}
+
+.clear-search {
+  background: #f1f5f9;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+}
+
+/* Add Card */
+
+.inv-add-card {
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 30px;
+}
+
+.inv-card-title {
+  font-size: 13px;
+  color: #1e40af;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.inv-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.inv-input-text {
+  padding: 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  font-size: 15px;
+  background: #f8fafc;
+}
+
+.inv-qty-row {
+  display: flex;
+  gap: 12px;
+}
+
+.inv-qty-input-group {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f1f5f9;
+  padding: 0 15px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+}
+
+.inv-input-num {
+  border: none;
+  background: transparent;
+  font-weight: 700;
+  font-size: 16px;
+  outline: none;
+  width: 100%;
+}
+
+.inv-primary-btn {
+  flex: 2;
+  background: #1e40af;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.inv-primary-btn:hover {
+  background: #1e3a8a;
+}
+
+/* Grid */
+
+.inv-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.inv-item-card {
+  background: white;
+  padding: 18px 22px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.inv-item-card.out-of-stock {
+  border-left: 6px solid #ef4444;
+  background: #fffafa;
+}
+
+.inv-item-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.inv-item-cat {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.inv-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.inv-qty-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.inv-qty-val {
+  font-size: 20px;
+  font-weight: 900;
+  color: #1e40af;
+  min-width: 30px;
+  text-align: center;
+}
+
+.inv-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 50px;
+  color: #64748b;
+  font-weight: 600;
+  background: white;
+  border-radius: 16px;
+  border: 2px dashed #cbd5e1;
+}
+
+/* Mobile */
+
+@media (max-width: 600px) {
+  .inv-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .inv-toggle-box {
+    width: 100%;
+  }
+
+  .inv-toggle-btn {
+    flex: 1;
+  }
+
+  .inv-qty-row {
+    flex-direction: column;
+  }
+}
