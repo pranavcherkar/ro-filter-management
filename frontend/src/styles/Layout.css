@@ -1,0 +1,15 @@
+.app-layout {
+  min-height: 100vh;
+}
+
+@media (min-width: 768px) {
+  .page-content {
+    padding-top: 80px;
+  }
+}
+
+@media (max-width: 767px) {
+  .page-content {
+    padding-bottom: 90px;
+  }
+}

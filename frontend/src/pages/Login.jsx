@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/apiClient";
 import { useAuth } from "../auth/AuthContext";
+import "../styles/login.css";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ export default function Login() {
 
     try {
       await api.post("/api/auth/login", { email, password });
-      await reload(); // fetch /api/auth/me again
+      await reload();
       navigate("/");
     } catch (err) {
       setError(err.message || "Login failed");
@@ -29,38 +30,39 @@ export default function Login() {
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 400, margin: "0 auto" }}>
-      <h2>Login</h2>
+    <div className="login-page">
+      <div className="login-card">
+        <h2>Welcome Back 👋</h2>
+        <p className="subtitle">Login to manage your services</p>
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label>Email</label>
-          <input
-            type="email"
-            value={email}
-            required
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ width: "100%", padding: 8 }}
-          />
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="input-group">
+            <label>Email</label>
+            <input
+              type="email"
+              value={email}
+              required
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <label>Password</label>
-          <input
-            type="password"
-            value={password}
-            required
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: "100%", padding: 8 }}
-          />
-        </div>
+          <div className="input-group">
+            <label>Password</label>
+            <input
+              type="password"
+              value={password}
+              required
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
 
-        {error && <p style={{ color: "red", marginBottom: 12 }}>{error}</p>}
+          {error && <p className="error-text">{error}</p>}
 
-        <button disabled={loading} style={{ width: "100%", padding: 10 }}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
-      </form>
+          <button className="login-btn" disabled={loading}>
+            {loading ? "Logging in..." : "Login"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
