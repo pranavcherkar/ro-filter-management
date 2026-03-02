@@ -73,7 +73,7 @@ const Dashboard = () => {
 
       <div className="dashboard-content">
         {/* Quick Actions */}
-        <section className="card card-full">
+        {/* <section className="card card-full">
           <h2>Quick Actions</h2>
           <div className="actions">
             <button
@@ -104,7 +104,7 @@ const Dashboard = () => {
               Inventory
             </button>
           </div>
-        </section>
+        </section> */}
 
         {/* Financial Overview */}
         <section className="card">

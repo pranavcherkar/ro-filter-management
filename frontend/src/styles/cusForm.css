@@ -119,3 +119,36 @@
     gap: 0;
   }
 }
+
+/* Existing styles remain same */
+.autocomplete-wrapper {
+  position: relative;
+}
+
+.autocomplete-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: white;
+  border: 1px solid #e0f2fe;
+  border-radius: 10px;
+  margin-top: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.autocomplete-item {
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.autocomplete-item:hover {
+  background: #f0f9ff;
+}
+.autocomplete-item:hover {
+  background: #f0f9ff;
+}
