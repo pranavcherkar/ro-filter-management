@@ -21,7 +21,7 @@ export const createCustomer = async (req, res) => {
       roBodyType,
       installationDate,
       filterPrice = 0,
-      filterPaidAmount = 0,
+      initialPaidAmount = 0, // ✅ match frontend
       lastServiceDate,
       filters,
       location,
@@ -35,7 +35,14 @@ export const createCustomer = async (req, res) => {
       });
     }
 
-    // 2️⃣ Check RO model stock (BLOCK if 0)
+    // Convert safely
+    const price = Number(filterPrice) || 0;
+    const paid = Number(initialPaidAmount) || 0;
+
+    const installDateObj = new Date(installationDate);
+    const serviceDateObj = lastServiceDate ? new Date(lastServiceDate) : null;
+
+    // 2️⃣ Check RO model stock
     const roStock = await ROModelInventory.findOne({
       userId,
       modelName: roModel,
@@ -48,7 +55,6 @@ export const createCustomer = async (req, res) => {
       });
     }
 
-    // Deduct stock
     roStock.quantity -= 1;
     await roStock.save();
 
@@ -56,27 +62,33 @@ export const createCustomer = async (req, res) => {
     const initializedFilters = (filters || []).map((f) => ({
       name: f.name,
       intervalMonths: f.intervalMonths,
-      lastChangedDate: lastServiceDate
-        ? new Date(lastServiceDate)
-        : new Date(installationDate),
+      lastChangedDate: serviceDateObj || installDateObj,
     }));
 
     // 4️⃣ Decide nextServiceDate
     let nextServiceDate = null;
 
-    if (lastServiceDate) {
-      nextServiceDate = addMonths(lastServiceDate, 6);
+    if (serviceDateObj) {
+      nextServiceDate = addMonths(serviceDateObj, 6);
     } else {
-      const install = new Date(installationDate);
       const now = new Date();
-      const diffDays = (now - install) / (1000 * 60 * 60 * 24);
+      const diffDays = (now - installDateObj) / (1000 * 60 * 60 * 24);
 
       if (diffDays <= 30) {
-        nextServiceDate = addMonths(installationDate, 6);
+        nextServiceDate = addMonths(installDateObj, 6);
       }
     }
 
-    // 5️⃣ Create customer
+    // 5️⃣ Decide payment status
+    let paymentStatus = "UNPAID";
+
+    if (paid >= price && price > 0) {
+      paymentStatus = "PAID";
+    } else if (paid > 0 && paid < price) {
+      paymentStatus = "PARTIAL";
+    }
+
+    // 6️⃣ Create customer
     const customer = await Customer.create({
       userId,
       name,
@@ -84,39 +96,32 @@ export const createCustomer = async (req, res) => {
       address,
       roModel,
       roBodyType,
-      installationDate,
-      filterPrice,
-      filterPaidAmount,
-      filterPaymentStatus: "UNPAID",
-      lastServiceDate: lastServiceDate || null,
+      installationDate: installDateObj,
+      filterPrice: price,
+      filterPaidAmount: paid,
+      filterPaymentStatus: paymentStatus,
+      lastServiceDate: serviceDateObj,
       nextServiceDate,
       filters: initializedFilters,
       location,
     });
 
-    // 6️⃣ Derive payment status
-    let paymentStatus = "UNPAID";
-    if (filterPaidAmount >= filterPrice && filterPrice > 0) {
-      paymentStatus = "PAID";
-    } else if (filterPaidAmount > 0 && filterPaidAmount < filterPrice) {
-      paymentStatus = "PARTIAL";
-    }
-
     // 7️⃣ Create FILTER_SALE invoice
-    if (filterPrice > 0) {
+    if (price > 0) {
       await Invoice.create({
         userId,
         customerId: customer._id,
         type: "FILTER_SALE",
         referenceId: customer._id,
+        invoiceDate: installDateObj, // ✅ correct business date
         items: [
           {
             name: `RO Filter (${roModel})`,
-            price: filterPrice,
+            price: price,
           },
         ],
-        totalAmount: filterPrice,
-        paidAmount: filterPaidAmount,
+        totalAmount: price,
+        paidAmount: paid,
         paymentStatus,
       });
     }

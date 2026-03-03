@@ -3,15 +3,13 @@
   min-height: 100vh;
   padding: 40px 20px;
   display: flex;
-  justify-content: center; /* TRUE horizontal centering */
+  justify-content: center;
 }
 
 .inv-container {
   width: 100%;
   max-width: 1100px;
 }
-
-/* Header */
 
 .inv-header {
   display: flex;
@@ -35,8 +33,6 @@
   margin: 4px 0 0;
 }
 
-/* Toggle */
-
 .inv-toggle-box {
   background: #cbd5e1;
   padding: 4px;
@@ -58,10 +54,7 @@
 .inv-toggle-btn.active {
   background: white;
   color: #1e40af;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
 }
-
-/* Search */
 
 .inv-search-section {
   margin-bottom: 25px;
@@ -83,17 +76,6 @@
   font-size: 16px;
   margin-left: 12px;
 }
-
-.clear-search {
-  background: #f1f5f9;
-  border: none;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-}
-
-/* Add Card */
 
 .inv-add-card {
   background: white;
@@ -161,12 +143,6 @@
   cursor: pointer;
 }
 
-.inv-primary-btn:hover {
-  background: #1e3a8a;
-}
-
-/* Grid */
-
 .inv-list-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -180,7 +156,7 @@
   border: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .inv-item-card.out-of-stock {
@@ -203,18 +179,31 @@
 
 .inv-item-controls {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.inv-quick-row {
+  display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
+}
+
+.inv-bulk-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .inv-qty-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: white;
   cursor: pointer;
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .inv-qty-val {
@@ -225,18 +214,25 @@
   text-align: center;
 }
 
-.inv-empty {
-  grid-column: 1 / -1;
+.inv-bulk-input {
+  width: 70px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-weight: 700;
   text-align: center;
-  padding: 50px;
-  color: #64748b;
-  font-weight: 600;
-  background: white;
-  border-radius: 16px;
-  border: 2px dashed #cbd5e1;
 }
 
-/* Mobile */
+.inv-update-btn {
+  background: #0ea5e9;
+  color: white;
+  border: none;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 13px;
+}
 
 @media (max-width: 600px) {
   .inv-header {
@@ -253,7 +249,13 @@
     flex: 1;
   }
 
-  .inv-qty-row {
+  .inv-item-card {
     flex-direction: column;
+    gap: 15px;
+  }
+
+  .inv-item-controls {
+    width: 100%;
+    align-items: flex-start;
   }
 }

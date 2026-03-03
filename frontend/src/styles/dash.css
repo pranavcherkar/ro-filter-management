@@ -1,9 +1,11 @@
-/* Header */
 .dashboard-header {
   background: linear-gradient(135deg, #6173c7, #764ba2);
   color: white;
   padding: 24px 20px;
   text-align: center;
+  .dashboard-header {
+    margin-top: 70px;
+  }
 }
 
 .dashboard-header h1 {
@@ -18,14 +20,12 @@
   opacity: 0.9;
 }
 
-/* Content */
 .dashboard-content {
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px 16px;
 }
 
-/* Card */
 .card {
   background: white;
   border-radius: 8px;
@@ -41,7 +41,6 @@
   color: #1f2937;
 }
 
-/* Buttons */
 .actions {
   display: flex;
   gap: 12px;
@@ -124,7 +123,6 @@
 .btn-2:hover {
   transform: translateY(-2px);
 }
-/* Add these additions to your existing dash.css */
 
 .biz-badge {
   display: inline-block;
@@ -148,7 +146,6 @@
   transform: scale(1.03);
 }
 
-/* Ensure the header text looks balanced */
 .dashboard-header h1 {
   margin-bottom: 4px;
 }
@@ -156,4 +153,20 @@
 .dashboard-header p {
   font-size: 14px;
   opacity: 0.85;
+}
+
+@media (max-width: 767px) {
+  .dashboard {
+    padding-top: 0;
+    padding-bottom: 70px;
+  }
+}
+@media (max-width: 767px) {
+  .dashboard-header {
+    margin-top: 0;
+  }
+
+  .dashboard {
+    padding-bottom: 90px;
+  }
 }

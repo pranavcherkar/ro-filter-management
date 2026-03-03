@@ -14,6 +14,9 @@ const InventoryParts = () => {
   const [newName, setNewName] = useState("");
   const [newQuantity, setNewQuantity] = useState(0);
 
+  // bulk quantity per item
+  const [qtyInputs, setQtyInputs] = useState({});
+
   useEffect(() => {
     loadInventory();
   }, [type]);
@@ -23,11 +26,18 @@ const InventoryParts = () => {
       setLoading(true);
       const endpoint =
         type === "parts" ? "/api/inventory/parts" : "/api/inventory/ro-models";
+      //  res = await api.get("/api/inventory/ro-models");
 
       const res = await api.get(endpoint);
       const data = type === "parts" ? res.items || [] : res.models || [];
 
       setItems(data);
+
+      const initialInputs = {};
+      data.forEach((item) => {
+        initialInputs[item._id] = "";
+      });
+      setQtyInputs(initialInputs);
     } catch (err) {
       setError("Failed to load inventory");
     } finally {
@@ -51,6 +61,33 @@ const InventoryParts = () => {
             : item,
         ),
       );
+    } catch (err) {
+      alert(err?.response?.data?.message || "Update failed");
+      loadInventory();
+    }
+  };
+
+  const handleBulkUpdate = async (id) => {
+    const change = Number(qtyInputs[id]);
+    if (!change) return;
+
+    try {
+      const endpoint =
+        type === "parts"
+          ? `/api/inventory/parts/${id}`
+          : `/api/inventory/ro-models/${id}`;
+
+      await api.patch(endpoint, { change });
+
+      setItems((prev) =>
+        prev.map((item) =>
+          item._id === id
+            ? { ...item, quantity: Math.max(0, item.quantity + change) }
+            : item,
+        ),
+      );
+
+      setQtyInputs((prev) => ({ ...prev, [id]: "" }));
     } catch (err) {
       alert(err?.response?.data?.message || "Update failed");
       loadInventory();
@@ -130,14 +167,6 @@ const InventoryParts = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            {searchTerm && (
-              <button
-                className="clear-search"
-                onClick={() => setSearchTerm("")}
-              >
-                ✕
-              </button>
-            )}
           </div>
         </div>
 
@@ -173,28 +202,25 @@ const InventoryParts = () => {
         </div>
 
         <div className="inv-list-grid">
-          {displayedItems.length === 0 ? (
-            <div className="inv-empty">
-              No items found matching "{searchTerm}"
-            </div>
-          ) : (
-            displayedItems.map((item) => (
-              <div
-                key={item._id}
-                className={`inv-item-card ${
-                  item.quantity <= 0 ? "out-of-stock" : ""
-                }`}
-              >
-                <div>
-                  <h3 className="inv-item-name">
-                    {type === "parts" ? item.name : item.modelName}
-                  </h3>
-                  <span className="inv-item-cat">
-                    {type === "parts" ? item.category || "Part" : "RO Unit"}
-                  </span>
-                </div>
+          {displayedItems.map((item) => (
+            <div
+              key={item._id}
+              className={`inv-item-card ${
+                item.quantity <= 0 ? "out-of-stock" : ""
+              }`}
+            >
+              <div>
+                <h3 className="inv-item-name">
+                  {type === "parts" ? item.name : item.modelName}
+                </h3>
+                <span className="inv-item-cat">
+                  {type === "parts" ? item.category || "Part" : "RO Unit"}
+                </span>
+              </div>
 
-                <div className="inv-item-controls">
+              <div className="inv-item-controls">
+                {/* Quick row */}
+                <div className="inv-quick-row">
                   <button
                     className="inv-qty-btn"
                     onClick={() => handleQuantityChange(item._id, -1)}
@@ -211,9 +237,32 @@ const InventoryParts = () => {
                     +
                   </button>
                 </div>
+
+                {/* Bulk row */}
+                <div className="inv-bulk-row">
+                  <input
+                    type="number"
+                    className="inv-bulk-input"
+                    value={qtyInputs[item._id] || ""}
+                    onChange={(e) =>
+                      setQtyInputs({
+                        ...qtyInputs,
+                        [item._id]: e.target.value,
+                      })
+                    }
+                    placeholder="+/-"
+                  />
+
+                  <button
+                    className="inv-update-btn"
+                    onClick={() => handleBulkUpdate(item._id)}
+                  >
+                    Update
+                  </button>
+                </div>
               </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
       </div>
     </div>

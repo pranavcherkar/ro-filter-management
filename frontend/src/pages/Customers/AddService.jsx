@@ -2,7 +2,48 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../../api/apiClient";
 import ErrorState from "../../components/ErrorState";
-import "../../styles/AddService.css"; // Import the CSS
+import "../../styles/AddService.css";
+
+const PART_OPTIONS = [
+  "Connector",
+  "Pipe (01 mit)",
+  "Switch",
+  "Tap",
+  "Ro cover",
+  "Flow",
+  "PP filter (120g)",
+  "PP 3micro",
+  "PP thread",
+  "Sediment",
+  "Carbon",
+  "Membrane",
+  "High TDS membrane",
+  "Mineral cartridge",
+  "UF Filter cartridge",
+  "ORG UF alkaline",
+  "ORG UF Membrane",
+  "Copper filter",
+  '20" inch pp',
+  '20" carbon',
+  "Jambo bag",
+  "Jambo pp",
+  "D.v set",
+  "Solenoid valve (sv)",
+  "Membrane housing",
+  "Bucket pump",
+  "Pre-filter housing",
+  "C & X clamp",
+  "Cut of cock",
+  "Smps",
+  "Motor (pump)",
+  "Tank inlet fish",
+  "TDS adjuster",
+  "UV strip light",
+  "UV tube",
+  "UV chamber",
+  "UV chock",
+  "A.s. par Tablet",
+];
 
 const AddService = () => {
   const { id } = useParams();
@@ -14,7 +55,9 @@ const AddService = () => {
   const [serviceType, setServiceType] = useState("SCHEDULED");
   const [affectsServiceCycle, setAffectsServiceCycle] = useState(true);
   const [serviceCharge, setServiceCharge] = useState("");
-  const [parts, setParts] = useState([{ partName: "", price: "" }]);
+  const [parts, setParts] = useState([
+    { partName: "", price: "", showDropdown: false },
+  ]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -25,8 +68,15 @@ const AddService = () => {
     setParts(updated);
   };
 
+  const handleSelectPart = (index, name) => {
+    const updated = [...parts];
+    updated[index].partName = name;
+    updated[index].showDropdown = false;
+    setParts(updated);
+  };
+
   const addPart = () => {
-    setParts([...parts, { partName: "", price: "" }]);
+    setParts([...parts, { partName: "", price: "", showDropdown: false }]);
   };
 
   const handleSubmit = async (e) => {
@@ -114,27 +164,53 @@ const AddService = () => {
 
             <h4 className="parts-title">Replaced Parts</h4>
 
-            {parts.map((part, index) => (
-              <div key={index} className="part-row">
-                <input
-                  className="service-input"
-                  placeholder="Part name"
-                  value={part.partName}
-                  onChange={(e) =>
-                    handlePartChange(index, "partName", e.target.value)
-                  }
-                />
-                <input
-                  className="service-input"
-                  type="number"
-                  placeholder="Price"
-                  value={part.price}
-                  onChange={(e) =>
-                    handlePartChange(index, "price", e.target.value)
-                  }
-                />
-              </div>
-            ))}
+            {parts.map((part, index) => {
+              const filteredOptions = PART_OPTIONS.filter((item) =>
+                item.toLowerCase().includes(part.partName.toLowerCase()),
+              );
+
+              return (
+                <div key={index} className="part-row">
+                  <div className="autocomplete-wrapper">
+                    <input
+                      className="service-input"
+                      placeholder="Part name"
+                      value={part.partName}
+                      onFocus={() =>
+                        handlePartChange(index, "showDropdown", true)
+                      }
+                      onChange={(e) =>
+                        handlePartChange(index, "partName", e.target.value)
+                      }
+                    />
+
+                    {part.showDropdown && filteredOptions.length > 0 && (
+                      <div className="autocomplete-dropdown">
+                        {filteredOptions.map((item, i) => (
+                          <div
+                            key={i}
+                            className="autocomplete-item"
+                            onClick={() => handleSelectPart(index, item)}
+                          >
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <input
+                    className="service-input"
+                    type="number"
+                    placeholder="Price"
+                    value={part.price}
+                    onChange={(e) =>
+                      handlePartChange(index, "price", e.target.value)
+                    }
+                  />
+                </div>
+              );
+            })}
 
             <button type="button" className="add-part-btn" onClick={addPart}>
               + Add Another Part

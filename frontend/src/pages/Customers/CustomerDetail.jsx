@@ -10,22 +10,41 @@ const CustomerDetail = () => {
   const navigate = useNavigate();
 
   const [customer, setCustomer] = useState(null);
+  const [serviceHistory, setServiceHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  const [selectedService, setSelectedService] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const loadCustomer = async () => {
+    const loadData = async () => {
       try {
-        const res = await api.get(`/api/customers/${id}`);
+        const [customerRes, historyRes] = await Promise.all([
+          api.get(`/api/customers/${id}`),
+          api.get(`/api/services/customer/${id}`),
+        ]);
 
         const customerData =
-          res?.data?.customer || res?.data || res?.customer || null;
+          customerRes?.data?.customer ||
+          customerRes?.data ||
+          customerRes?.customer ||
+          null;
 
         if (!customerData) {
           throw new Error("Customer data not found");
         }
 
         setCustomer(customerData);
+
+        const history = Array.isArray(historyRes.services)
+          ? historyRes.services
+          : [];
+
+        history.sort((a, b) => new Date(b.date) - new Date(a.date));
+        setServiceHistory(history);
       } catch (err) {
         setError(
           err.response?.data?.message ||
@@ -34,11 +53,21 @@ const CustomerDetail = () => {
         );
       } finally {
         setLoading(false);
+        setHistoryLoading(false);
       }
     };
 
-    loadCustomer();
+    loadData();
   }, [id]);
+
+  const formatDate = (date) => {
+    if (!date) return "-";
+    return new Date(date).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   const renderSafeValue = (val) => {
     if (val === null || val === undefined) return "-";
@@ -57,38 +86,46 @@ const CustomerDetail = () => {
     customer?.payment?.status &&
     customer.payment.status.toLowerCase() === "paid";
 
+  const openServiceModal = async (serviceId) => {
+    try {
+      setModalLoading(true);
+      const res = await api.get(`/api/services/${serviceId}`);
+      setSelectedService(res.service);
+    } catch {
+      alert("Failed to load service details");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const closeModal = () => setSelectedService(null);
+
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} />;
-
-  if (!customer) {
-    return (
-      <div className="detail-wrapper" style={{ textAlign: "center" }}>
-        Customer not found
-      </div>
-    );
-  }
+  if (!customer) return <div>Customer not found</div>;
 
   return (
     <div className="detail-wrapper">
       <div className="detail-container">
-        {/* Header */}
+        {/* HEADER */}
         <header className="detail-header">
           <div>
             <h1>{renderSafeValue(customer.name)}</h1>
             <p>📞 {renderSafeValue(customer.phone)}</p>
+            <div className="install-date">
+              Installed on: {formatDate(customer.installationDate)}
+            </div>
           </div>
 
           <div className="header-due">
-            <div style={{ fontSize: "11px", opacity: 0.8, fontWeight: "700" }}>
-              NEXT SERVICE DUE
-            </div>
-            <div style={{ fontSize: "22px", fontWeight: "800" }}>
-              {renderSafeValue(customer.service?.nextServiceDate) || "TBD"}
+            <div className="due-label">NEXT SERVICE DUE</div>
+            <div className="due-date">
+              {formatDate(customer.service?.nextServiceDate)}
             </div>
           </div>
         </header>
 
-        {/* Action panel */}
+        {/* ACTION BUTTONS */}
         <div className="action-panel">
           <button
             onClick={() => navigate(`/customers/${id}/edit`)}
@@ -99,14 +136,10 @@ const CustomerDetail = () => {
 
           <button
             onClick={() => !isPaid && navigate(`/customers/${id}/payment`)}
-            className="btn btn-outline"
+            className={`btn btn-outline ${isPaid ? "btn-disabled" : ""}`}
             disabled={isPaid}
-            style={{
-              opacity: isPaid ? 0.6 : 1,
-              cursor: isPaid ? "not-allowed" : "pointer",
-            }}
           >
-            Update Payment
+            {isPaid ? "Payment ✔" : "Update Payment"}
           </button>
 
           <button
@@ -117,28 +150,14 @@ const CustomerDetail = () => {
           </button>
         </div>
 
-        {/* Paid message */}
-        {isPaid && (
-          <div
-            style={{
-              marginTop: "10px",
-              background: "#ecfdf5",
-              color: "#065f46",
-              padding: "10px",
-              borderRadius: "6px",
-              fontSize: "14px",
-              fontWeight: "600",
-            }}
-          >
-            ✅ Payment completed. Further payment updates are disabled.
-          </div>
-        )}
+        {/* PAYMENT MESSAGE */}
+        {isPaid && <div className="paid-banner">Payment completed.</div>}
 
-        {/* Info grid */}
+        {/* INFO GRID */}
         <div className="info-grid">
-          {/* Installation */}
+          {/* INSTALLATION DETAILS */}
           <div className="detail-card">
-            <div className="section-title">📍 Installation Details</div>
+            <div className="section-title">Installation Details</div>
 
             <div className="info-row">
               <span className="info-label">Address</span>
@@ -162,9 +181,9 @@ const CustomerDetail = () => {
             </div>
           </div>
 
-          {/* Service Health */}
+          {/* SERVICE HEALTH */}
           <div className="detail-card">
-            <div className="section-title">🛠 Service Health</div>
+            <div className="section-title">Service Health</div>
 
             <div className="info-row">
               <span className="info-label">Status</span>
@@ -176,73 +195,120 @@ const CustomerDetail = () => {
             <div className="info-row">
               <span className="info-label">Last Service</span>
               <span className="info-value">
-                {renderSafeValue(customer.service?.lastServiceDate)}
+                {formatDate(customer.service?.lastServiceDate)}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Financial summary */}
+        {/* FINANCIAL SUMMARY */}
         <div className="detail-card financial-card">
           <div className="section-title">💰 Financial Summary</div>
 
-          <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-            <div>
-              <div className="info-label">Filter Price</div>
-              <div className="info-value" style={{ fontSize: "22px" }}>
+          <div className="financial-summary-row">
+            <div className="financial-box">
+              <div className="financial-label">Filter Price</div>
+              <div className="financial-amount">
                 ₹{renderSafeValue(customer.payment?.filterPrice)}
               </div>
             </div>
 
-            <div>
-              <div className="info-label">Total Paid</div>
-              <div className="info-value" style={{ fontSize: "22px" }}>
+            <div className="financial-box">
+              <div className="financial-label">Total Paid</div>
+              <div className="financial-amount">
                 ₹{renderSafeValue(customer.payment?.paidAmount)}
               </div>
             </div>
 
-            <div>
-              <div className="info-label">Balance Due</div>
-              <div className="info-value" style={{ fontSize: "22px" }}>
+            <div className="financial-box">
+              <div className="financial-label">Balance Due</div>
+              <div className="financial-amount">
                 ₹{renderSafeValue(customer.payment?.pendingAmount)}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Service history */}
+        {/* SERVICE HISTORY */}
         <div className="detail-card">
-          <div className="section-title">📜 Service History</div>
+          <div className="section-title">Service History</div>
 
-          {!customer.servicehistory?.length ? (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "30px",
-                color: "#94a3b8",
-              }}
-            >
-              No service history available.
-            </div>
+          {historyLoading ? (
+            <div className="history-empty">Loading...</div>
+          ) : serviceHistory.length === 0 ? (
+            <div className="history-empty">No service history available.</div>
           ) : (
-            customer.servicehistory.map((service, index) => (
-              <div key={index} className="history-item">
-                <div>
-                  <div style={{ fontWeight: "700" }}>
-                    {renderSafeValue(service.type)}
+            <div className="history-scroll">
+              {serviceHistory.map((service) => (
+                <div
+                  key={service.id}
+                  className="history-item"
+                  onClick={() => openServiceModal(service.id)}
+                >
+                  <div>
+                    <div className="history-type">{service.type}</div>
+                    <div className="history-date">
+                      {formatDate(service.date)}
+                    </div>
                   </div>
-                  <div style={{ fontSize: "13px", color: "#64748b" }}>
-                    {renderSafeValue(service.date)}
-                  </div>
+                  <div className="history-amount">₹{service.amount}</div>
                 </div>
-                <div className="info-value">
-                  ₹{renderSafeValue(service.amount)}
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
       </div>
+
+      {/* MODAL */}
+      {selectedService && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+            {modalLoading ? (
+              <div>Loading...</div>
+            ) : (
+              <>
+                <div className="modal-header">
+                  <h3>Service Details</h3>
+                  <button className="close-btn" onClick={closeModal}>
+                    ×
+                  </button>
+                </div>
+
+                <div className="modal-body">
+                  <p>
+                    <strong>Date:</strong>{" "}
+                    {formatDate(selectedService.serviceDate)}
+                  </p>
+                  <p>
+                    <strong>Type:</strong> {selectedService.serviceType}
+                  </p>
+                  <p>
+                    <strong>Service Charge:</strong> ₹
+                    {selectedService.serviceCharge}
+                  </p>
+
+                  <div>
+                    <strong>Replaced Parts:</strong>
+                    {selectedService.replacedParts?.length === 0 ? (
+                      <p>No parts replaced</p>
+                    ) : (
+                      selectedService.replacedParts.map((p, i) => (
+                        <p key={i}>
+                          {p.partName} – ₹{p.price}
+                        </p>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="modal-total">
+                    Total: ₹{selectedService.totalServiceAmount}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

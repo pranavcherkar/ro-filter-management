@@ -3,6 +3,8 @@ import { Service } from "../models/service.model.js";
 import { Invoice } from "../models/invoice.model.js";
 import { addMonths } from "../utils/date.utils.js";
 import { InventoryItem } from "../models/inventoryItem.model.js";
+import mongoose from "mongoose";
+
 export const createService = async (req, res) => {
   try {
     const userId = req.userId;
@@ -145,44 +147,78 @@ export const createService = async (req, res) => {
 };
 
 ////get all services
+
 export const getAllServices = async (req, res) => {
   try {
-    const { customerId, fromDate, toDate, serviceType, month, year } =
-      req.query;
+    const {
+      customerName,
+      fromDate,
+      toDate,
+      serviceType,
+      month,
+      year,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    const currentPage = parseInt(page) || 1;
+    const perPage = parseInt(limit) || 10;
+    const skip = (currentPage - 1) * perPage;
 
     const query = {
       userId: req.userId,
     };
 
-    // filter by customer
-    if (customerId) {
-      query.customerId = customerId;
+    // 🔎 Search by customer name
+    if (customerName) {
+      const matchedCustomers = await Customer.find({
+        userId: req.userId,
+        name: { $regex: customerName, $options: "i" },
+      }).select("_id");
+
+      const customerIds = matchedCustomers.map((c) => c._id);
+
+      if (customerIds.length === 0) {
+        return res.status(200).json({
+          success: true,
+          totalItems: 0,
+          totalPages: 0,
+          currentPage,
+          services: [],
+        });
+      }
+
+      query.customerId = { $in: customerIds };
     }
 
-    // filter by service type
+    // Filter by service type
     if (serviceType) {
       query.serviceType = serviceType;
     }
 
-    // date filtering
+    // Date filtering
     if (month && year) {
       const start = new Date(year, month - 1, 1);
       const end = new Date(year, month, 0, 23, 59, 59);
-
       query.serviceDate = { $gte: start, $lte: end };
     } else if (fromDate || toDate) {
       query.serviceDate = {};
-
       if (fromDate) query.serviceDate.$gte = new Date(fromDate);
       if (toDate) query.serviceDate.$lte = new Date(toDate);
     }
 
+    // 🔥 Get total count before pagination
+    const totalItems = await Service.countDocuments(query);
+    const totalPages = Math.ceil(totalItems / perPage);
+
+    // 🔥 Apply pagination
     const services = await Service.find(query)
       .sort({ serviceDate: -1 })
+      .skip(skip)
+      .limit(perPage)
       .populate("customerId", "name phone")
       .lean();
 
-    // format response (lightweight)
     const formatted = services.map((s) => ({
       id: s._id,
       serviceDate: s.serviceDate,
@@ -199,7 +235,10 @@ export const getAllServices = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      count: formatted.length,
+      totalItems,
+      totalPages,
+      currentPage,
+      perPage,
       services: formatted,
     });
   } catch (error) {
@@ -207,6 +246,113 @@ export const getAllServices = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch services",
+    });
+  }
+};
+// // get service by id
+// import { Service } from "../models/service.model.js";
+
+export const getServiceById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate Mongo ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid service ID",
+      });
+    }
+
+    const service = await Service.findOne({
+      _id: id,
+      userId: req.userId, // 🔐 security check
+    })
+      .populate("customerId", "name phone address roModel")
+      .lean();
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
+    // Format response
+    const formattedService = {
+      id: service._id,
+      serviceDate: service.serviceDate,
+      serviceType: service.serviceType,
+
+      customer: {
+        id: service.customerId?._id,
+        name: service.customerId?.name,
+        phone: service.customerId?.phone,
+        address: service.customerId?.address,
+        roModel: service.customerId?.roModel,
+      },
+
+      serviceCharge: service.serviceCharge,
+      replacedParts: service.replacedParts,
+      totalServiceAmount: service.totalServiceAmount,
+      createdAt: service.createdAt,
+      updatedAt: service.updatedAt,
+    };
+
+    res.status(200).json({
+      success: true,
+      service: formattedService,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch service",
+    });
+  }
+};
+
+//get services by customer id
+export const getServicesByCustomer = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(customerId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid customer ID",
+      });
+    }
+
+    const services = await Service.find({
+      customerId,
+      userId: req.userId,
+    })
+      .sort({ serviceDate: -1 })
+      .select(
+        "serviceDate serviceType serviceCharge replacedParts totalServiceAmount",
+      )
+      .lean();
+
+    const formatted = services.map((s) => ({
+      id: s._id,
+      date: s.serviceDate,
+      type: s.serviceType,
+      serviceCharge: s.serviceCharge,
+      replacedParts: s.replacedParts,
+      amount: s.totalServiceAmount,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: formatted.length,
+      services: formatted,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch service history",
     });
   }
 };

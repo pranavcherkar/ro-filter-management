@@ -3,32 +3,50 @@ import api from "../../api/apiClient";
 import Loading from "../../components/Loading";
 import ErrorState from "../../components/ErrorState";
 import { jsPDF } from "jspdf";
-import "../../styles/invoicelist.css"; // Import the CSS
+import autoTable from "jspdf-autotable";
+import "../../styles/invoicelist.css";
 
 const InvoicesList = () => {
   const [invoices, setInvoices] = useState([]);
+  const [business, setBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [customerId, setCustomerId] = useState("");
+  const [customerName, setCustomerName] = useState("");
   const [type, setType] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
 
-  const loadInvoices = async () => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 20;
+
+  const loadInvoices = async (page = 1) => {
     setLoading(true);
     setError("");
+
     try {
-      const params = {};
-      if (customerId) params.customer = customerId;
+      const params = {
+        page,
+        limit,
+      };
+
+      if (customerName) params.customerName = customerName;
       if (type) params.type = type;
       if (paymentStatus) params.paymentStatus = paymentStatus;
       if (month) params.month = month;
       if (year) params.year = year;
 
-      const res = await api.get("/api/invoices", { params });
-      setInvoices(Array.isArray(res.invoices) ? res.invoices : []);
+      const [invoiceRes, userRes] = await Promise.all([
+        api.get("/api/invoices", { params }),
+        api.get("/api/auth/me"),
+      ]);
+
+      setInvoices(invoiceRes.invoices || []);
+      setTotalPages(invoiceRes.totalPages || 1);
+      setCurrentPage(invoiceRes.currentPage || 1);
+      setBusiness(userRes.user || null);
     } catch (err) {
       setError(err.message || "Failed to load invoices");
     } finally {
@@ -37,94 +55,95 @@ const InvoicesList = () => {
   };
 
   useEffect(() => {
-    loadInvoices();
+    loadInvoices(1);
   }, []);
 
-  const isFullyPaid = (inv) => {
-    if (!inv) return false;
-    if (inv.paymentStatus === "PAID") return true;
-    if (Number(inv.pendingAmount) === 0) return true;
-    return Number(inv.totalAmount || 0) === Number(inv.paidAmount || 0);
+  const applyFilters = () => {
+    setCurrentPage(1);
+    loadInvoices(1);
   };
 
-  const getStatusClass = (status) => {
-    const s = String(status).toUpperCase();
-    if (s === "PAID") return "status-badge status-paid";
-    if (s === "PARTIAL") return "status-badge status-partial";
-    return "status-badge status-unpaid";
-  };
+  const formatDate = (date) => new Date(date).toLocaleDateString("en-IN");
+  const formatMoney = (value) => Number(value || 0).toLocaleString("en-IN");
 
-  // generateInvoicePDF function remains exactly as you had it
   const generateInvoicePDF = (inv) => {
     const doc = new jsPDF();
-    const safeText = (v) => String(v || "-");
-    const formatDate = (date) => {
-      if (!date) return "-";
-      const d = new Date(date);
-      return isNaN(d.getTime()) ? "-" : d.toLocaleDateString("en-IN");
-    };
-    const money = (v) => `Rs. ${Number(v || 0).toLocaleString("en-IN")}`;
 
-    const customerName = (inv.customer?.name || "customer")
-      .replace(/\s+/g, "_")
-      .toLowerCase();
-    const customerPhone = inv.customer?.phone || "unknown";
+    const businessName = business?.businessName || "";
+    const ownerName = `${business?.firstname || ""} ${business?.lastname || ""}`;
+    const businessPhone = business?.phone || "";
+    const businessEmail = business?.email || "";
 
+    let y = 20;
+
+    doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(28);
-    doc.text("INVOICE", 105, 25, { align: "center" });
-    doc.line(20, 30, 190, 30);
+    doc.text(businessName, 20, y);
 
-    let y = 45;
-    doc.rect(105, 40, 85, 40);
-    doc.setFontSize(9);
-    doc.text("INVOICE NO.", 110, y + 5);
-    doc.setFont("helvetica", "normal");
-    doc.text(safeText(inv._id || inv.id), 110, y + 12);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("DATE", 110, y + 27);
-    doc.setFont("helvetica", "normal");
-    doc.text(formatDate(inv.invoiceDate || inv.createdAt), 110, y + 34);
-
-    doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text("BILL TO", 20, y);
-    doc.setFontSize(11);
-    doc.text(safeText(inv.customer?.name), 20, y + 8);
     doc.setFont("helvetica", "normal");
-    doc.text(`Phone: ${safeText(inv.customer?.phone)}`, 20, y + 16);
+    y += 6;
+    doc.text(`Owner: ${ownerName}`, 20, y);
+    y += 5;
+    doc.text(`Phone: ${businessPhone}`, 20, y);
+    y += 5;
+    doc.text(`Email: ${businessEmail}`, 20, y);
 
-    y = 92;
-    doc.rect(20, y - 5, 170, 10);
+    doc.setFontSize(26);
     doc.setFont("helvetica", "bold");
-    doc.text("DESCRIPTION", 25, y + 2);
-    doc.text("AMOUNT", 185, y + 2, { align: "right" });
+    doc.text("INVOICE", 200, 25, { align: "right" });
 
-    y += 15;
+    doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(
-      inv.type === "FILTER_SALE" ? "Filter Sale" : "Service Charge",
-      25,
-      y,
-    );
-    doc.text(money(inv.totalAmount), 185, y, { align: "right" });
+    doc.text(`Invoice ID: ${inv.id}`, 200, 35, { align: "right" });
+    doc.text(`Date: ${formatDate(inv.invoiceDate)}`, 200, 40, {
+      align: "right",
+    });
 
-    y += 20;
-    doc.line(20, y, 190, y);
-    y += 12;
-    doc.text("Subtotal", 130, y);
-    doc.text(money(inv.totalAmount), 185, y, { align: "right" });
-    y += 8;
-    doc.text("Paid Amount", 130, y);
-    doc.text(money(inv.paidAmount), 185, y, { align: "right" });
+    doc.line(20, 48, 200, 48);
 
-    y += 15;
+    y = 60;
     doc.setFont("helvetica", "bold");
-    doc.text("PAYMENT STATUS", 130, y + 4);
-    doc.text(safeText(inv.paymentStatus), 185, y + 4, { align: "right" });
+    doc.text("Bill To:", 20, y);
 
-    doc.save(`invoice_${customerName}_${customerPhone}.pdf`);
+    doc.setFont("helvetica", "normal");
+    y += 7;
+    doc.text(inv.customer?.name || "", 20, y);
+    y += 6;
+    doc.text(`Phone: ${inv.customer?.phone || ""}`, 20, y);
+
+    const rows = inv.items.map((item, index) => [
+      index + 1,
+      item.name,
+      formatMoney(item.price),
+    ]);
+
+    autoTable(doc, {
+      startY: 80,
+      head: [["#", "Description", "Amount (Rs)"]],
+      body: rows,
+      theme: "grid",
+    });
+
+    const finalY = doc.lastAutoTable.finalY + 15;
+
+    doc.text("Subtotal:", 140, finalY);
+    doc.text(`Rs ${formatMoney(inv.totalAmount)}`, 200, finalY, {
+      align: "right",
+    });
+
+    doc.text("Paid:", 140, finalY + 8);
+    doc.text(`Rs ${formatMoney(inv.paidAmount)}`, 200, finalY + 8, {
+      align: "right",
+    });
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Pending:", 140, finalY + 16);
+    doc.text(`Rs ${formatMoney(inv.pendingAmount)}`, 200, finalY + 16, {
+      align: "right",
+    });
+
+    doc.save(`invoice_${inv.customer?.name}.pdf`);
   };
 
   if (loading) return <Loading />;
@@ -136,15 +155,17 @@ const InvoicesList = () => {
 
       <div className="invoice-filters">
         <input
-          placeholder="Customer ID"
-          value={customerId}
-          onChange={(e) => setCustomerId(e.target.value)}
+          placeholder="Search Customer Name"
+          value={customerName}
+          onChange={(e) => setCustomerName(e.target.value)}
         />
+
         <select value={type} onChange={(e) => setType(e.target.value)}>
           <option value="">All Types</option>
           <option value="FILTER_SALE">Filter Sale</option>
           <option value="SERVICE">Service</option>
         </select>
+
         <select
           value={paymentStatus}
           onChange={(e) => setPaymentStatus(e.target.value)}
@@ -154,19 +175,22 @@ const InvoicesList = () => {
           <option value="PARTIAL">Partial</option>
           <option value="UNPAID">Unpaid</option>
         </select>
+
         <input
           type="number"
           placeholder="Month"
           value={month}
           onChange={(e) => setMonth(e.target.value)}
         />
+
         <input
           type="number"
           placeholder="Year"
           value={year}
           onChange={(e) => setYear(e.target.value)}
         />
-        <button className="apply-btn" onClick={loadInvoices}>
+
+        <button className="apply-btn" onClick={applyFilters}>
           Apply Filters
         </button>
       </div>
@@ -174,57 +198,70 @@ const InvoicesList = () => {
       {invoices.length === 0 ? (
         <p className="no-results">No invoices found</p>
       ) : (
-        invoices.map((inv) => (
-          <div key={inv._id || inv.id} className="invoice-card">
-            <div className="invoice-card-header">
-              <div>
-                <span className="stat-label">Date</span>
-                <div className="stat-value">
-                  {new Date(inv.createdAt).toLocaleDateString()}
+        <>
+          {invoices.map((inv) => (
+            <div key={inv.id} className="invoice-card">
+              <div className="invoice-card-header">
+                <div>
+                  <span className="stat-label">Date</span>
+                  <div className="stat-value">
+                    {formatDate(inv.invoiceDate)}
+                  </div>
+                </div>
+                <span className="status-badge">{inv.paymentStatus}</span>
+              </div>
+
+              <div className="invoice-grid">
+                <div className="invoice-stat">
+                  <span className="stat-label">Customer</span>
+                  <span className="stat-value">{inv.customer?.name}</span>
+                </div>
+                <div className="invoice-stat">
+                  <span className="stat-label">Total</span>
+                  <span className="stat-value">
+                    Rs {formatMoney(inv.totalAmount)}
+                  </span>
                 </div>
               </div>
-              <span className={getStatusClass(inv.paymentStatus)}>
-                {inv.paymentStatus}
-              </span>
-            </div>
 
-            <div className="invoice-grid">
-              <div className="invoice-stat">
-                <span className="stat-label">Customer</span>
-                <span className="stat-value">{inv.customer?.name}</span>
-              </div>
-              <div className="invoice-stat">
-                <span className="stat-label">Type</span>
-                <span className="stat-value">{inv.type}</span>
-              </div>
-              <div className="invoice-stat">
-                <span className="stat-label">Total</span>
-                <span className="stat-value">₹{inv.totalAmount}</span>
-              </div>
-              <div className="invoice-stat">
-                <span className="stat-label">Paid</span>
-                <span className="stat-value" style={{ color: "#16a34a" }}>
-                  ₹{inv.paidAmount}
-                </span>
-              </div>
-              <div className="invoice-stat">
-                <span className="stat-label">Pending</span>
-                <span className="stat-value" style={{ color: "#dc2626" }}>
-                  ₹{inv.pendingAmount}
-                </span>
-              </div>
-            </div>
-
-            {isFullyPaid(inv) && (
               <button
                 className="pdf-btn"
                 onClick={() => generateInvoicePDF(inv)}
               >
-                📄 Download Invoice PDF
+                Download Invoice PDF
               </button>
-            )}
+            </div>
+          ))}
+
+          <div className="pagination">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => loadInvoices(currentPage - 1)}
+            >
+              Prev
+            </button>
+
+            {[...Array(totalPages)].map((_, index) => {
+              const pageNumber = index + 1;
+              return (
+                <button
+                  key={pageNumber}
+                  className={currentPage === pageNumber ? "active-page" : ""}
+                  onClick={() => loadInvoices(pageNumber)}
+                >
+                  {pageNumber}
+                </button>
+              );
+            })}
+
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => loadInvoices(currentPage + 1)}
+            >
+              Next
+            </button>
           </div>
-        ))
+        </>
       )}
     </div>
   );

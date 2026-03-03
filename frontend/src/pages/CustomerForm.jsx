@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import api from "../api/apiClient";
 import Loading from "../components/Loading";
@@ -9,10 +9,14 @@ const CustomerForm = () => {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const dropdownRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(isEdit);
   const [error, setError] = useState("");
+
+  const [roModels, setRoModels] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -28,7 +32,38 @@ const CustomerForm = () => {
     isActive: true,
   });
 
-  // Load customer for edit
+  // Load RO Models (active + quantity > 0)
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        const res = await api.get("/api/inventory/ro-models");
+        const models = res.models || [];
+
+        const availableModels = models
+          .filter((m) => m.isActive && m.quantity > 0)
+          .map((m) => m.modelName);
+
+        setRoModels(availableModels);
+      } catch (err) {
+        console.error("Failed to load RO models");
+      }
+    };
+
+    loadModels();
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Load customer in edit mode
   useEffect(() => {
     if (!isEdit) return;
 
@@ -68,6 +103,15 @@ const CustomerForm = () => {
     const { name, value } = e.target;
     setForm({ ...form, [name]: value });
   };
+
+  const handleSelectModel = (model) => {
+    setForm({ ...form, roModel: model });
+    setShowDropdown(false);
+  };
+
+  const filteredModels = roModels.filter((model) =>
+    model.toLowerCase().includes(form.roModel.toLowerCase()),
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -112,10 +156,10 @@ const CustomerForm = () => {
                   value={form.name}
                   onChange={handleChange}
                   className="form-input"
-                  placeholder="Enter name"
                   required
                 />
               </div>
+
               <div className="form-group">
                 <label className="form-label">Phone</label>
                 <input
@@ -123,7 +167,6 @@ const CustomerForm = () => {
                   value={form.phone}
                   onChange={handleChange}
                   className="form-input"
-                  placeholder="Phone number"
                   required
                 />
               </div>
@@ -136,21 +179,39 @@ const CustomerForm = () => {
                 value={form.address}
                 onChange={handleChange}
                 className="form-input"
-                placeholder="Full address"
               />
             </div>
 
             <div className="form-grid">
-              <div className="form-group">
+              <div
+                className="form-group autocomplete-wrapper"
+                ref={dropdownRef}
+              >
                 <label className="form-label">RO Model</label>
                 <input
                   name="roModel"
                   value={form.roModel}
                   onChange={handleChange}
+                  onFocus={() => setShowDropdown(true)}
                   className="form-input"
-                  placeholder="e.g. Kent Grand"
+                  placeholder="Search RO model"
                 />
+
+                {showDropdown && filteredModels.length > 0 && (
+                  <div className="autocomplete-dropdown">
+                    {filteredModels.map((model, index) => (
+                      <div
+                        key={index}
+                        className="autocomplete-item"
+                        onClick={() => handleSelectModel(model)}
+                      >
+                        {model}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+
               <div className="form-group">
                 <label className="form-label">Body Type</label>
                 <input
@@ -158,7 +219,6 @@ const CustomerForm = () => {
                   value={form.bodyType}
                   onChange={handleChange}
                   className="form-input"
-                  placeholder="e.g. Cabinet"
                 />
               </div>
             </div>
@@ -174,6 +234,7 @@ const CustomerForm = () => {
                   className="form-input"
                 />
               </div>
+
               <div className="form-group">
                 <label className="form-label">Last Service Date</label>
                 <input
@@ -195,8 +256,6 @@ const CustomerForm = () => {
                   value={form.filterPrice}
                   disabled={isEdit}
                   onChange={handleChange}
-                  onWheel={(e) => e.target.blur()} // 🔒 disables scroll
-                  inputMode="numeric"
                   className="form-input"
                 />
               </div>
@@ -209,8 +268,6 @@ const CustomerForm = () => {
                     name="initialPaidAmount"
                     value={form.initialPaidAmount}
                     onChange={handleChange}
-                    onWheel={(e) => e.target.blur()}
-                    inputMode="numeric"
                     className="form-input"
                   />
                 </div>
@@ -224,11 +281,9 @@ const CustomerForm = () => {
                 value={form.location}
                 onChange={handleChange}
                 className="form-input"
-                placeholder="Nearby landmark"
               />
             </div>
 
-            {/* Edit-only: Active / Inactive */}
             {isEdit && (
               <div className="form-group">
                 <label className="form-label">Customer Status</label>
