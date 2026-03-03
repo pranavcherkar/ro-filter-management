@@ -125,3 +125,36 @@
   margin-top: 40px;
   color: #64748b;
 }
+/* PAGINATION */
+
+.pagination {
+  margin-top: 25px;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pagination button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: #e0f2fe;
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.active-page {
+  background: #1e40af !important;
+  color: white !important;
+  border-color: #1e40af;
+}

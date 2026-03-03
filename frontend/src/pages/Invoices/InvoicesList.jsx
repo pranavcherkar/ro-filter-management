@@ -12,19 +12,27 @@ const InvoicesList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [customerId, setCustomerId] = useState("");
+  const [customerName, setCustomerName] = useState("");
   const [type, setType] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [month, setMonth] = useState("");
   const [year, setYear] = useState("");
 
-  const loadInvoices = async () => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = 20;
+
+  const loadInvoices = async (page = 1) => {
     setLoading(true);
     setError("");
 
     try {
-      const params = {};
-      if (customerId) params.customer = customerId;
+      const params = {
+        page,
+        limit,
+      };
+
+      if (customerName) params.customerName = customerName;
       if (type) params.type = type;
       if (paymentStatus) params.paymentStatus = paymentStatus;
       if (month) params.month = month;
@@ -36,6 +44,8 @@ const InvoicesList = () => {
       ]);
 
       setInvoices(invoiceRes.invoices || []);
+      setTotalPages(invoiceRes.totalPages || 1);
+      setCurrentPage(invoiceRes.currentPage || 1);
       setBusiness(userRes.user || null);
     } catch (err) {
       setError(err.message || "Failed to load invoices");
@@ -45,11 +55,15 @@ const InvoicesList = () => {
   };
 
   useEffect(() => {
-    loadInvoices();
+    loadInvoices(1);
   }, []);
 
-  const formatDate = (date) => new Date(date).toLocaleDateString("en-IN");
+  const applyFilters = () => {
+    setCurrentPage(1);
+    loadInvoices(1);
+  };
 
+  const formatDate = (date) => new Date(date).toLocaleDateString("en-IN");
   const formatMoney = (value) => Number(value || 0).toLocaleString("en-IN");
 
   const generateInvoicePDF = (inv) => {
@@ -62,7 +76,6 @@ const InvoicesList = () => {
 
     let y = 20;
 
-    // HEADER LEFT
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
     doc.text(businessName, 20, y);
@@ -76,7 +89,6 @@ const InvoicesList = () => {
     y += 5;
     doc.text(`Email: ${businessEmail}`, 20, y);
 
-    // HEADER RIGHT
     doc.setFontSize(26);
     doc.setFont("helvetica", "bold");
     doc.text("INVOICE", 200, 25, { align: "right" });
@@ -90,7 +102,6 @@ const InvoicesList = () => {
 
     doc.line(20, 48, 200, 48);
 
-    // BILL TO
     y = 60;
     doc.setFont("helvetica", "bold");
     doc.text("Bill To:", 20, y);
@@ -101,7 +112,6 @@ const InvoicesList = () => {
     y += 6;
     doc.text(`Phone: ${inv.customer?.phone || ""}`, 20, y);
 
-    // TABLE
     const rows = inv.items.map((item, index) => [
       index + 1,
       item.name,
@@ -113,28 +123,10 @@ const InvoicesList = () => {
       head: [["#", "Description", "Amount (Rs)"]],
       body: rows,
       theme: "grid",
-      styles: {
-        fontSize: 10,
-        cellPadding: 4,
-      },
-      headStyles: {
-        fillColor: [30, 64, 175],
-        textColor: 255,
-      },
-      columnStyles: {
-        0: { cellWidth: 15 },
-        1: { cellWidth: 115 },
-        2: {
-          cellWidth: 40,
-          halign: "right",
-        },
-      },
     });
 
     const finalY = doc.lastAutoTable.finalY + 15;
 
-    // TOTALS
-    doc.setFont("helvetica", "normal");
     doc.text("Subtotal:", 140, finalY);
     doc.text(`Rs ${formatMoney(inv.totalAmount)}`, 200, finalY, {
       align: "right",
@@ -163,9 +155,9 @@ const InvoicesList = () => {
 
       <div className="invoice-filters">
         <input
-          placeholder="Customer ID"
-          value={customerId}
-          onChange={(e) => setCustomerId(e.target.value)}
+          placeholder="Search Customer Name"
+          value={customerName}
+          onChange={(e) => setCustomerName(e.target.value)}
         />
 
         <select value={type} onChange={(e) => setType(e.target.value)}>
@@ -198,7 +190,7 @@ const InvoicesList = () => {
           onChange={(e) => setYear(e.target.value)}
         />
 
-        <button className="apply-btn" onClick={loadInvoices}>
+        <button className="apply-btn" onClick={applyFilters}>
           Apply Filters
         </button>
       </div>
@@ -206,36 +198,70 @@ const InvoicesList = () => {
       {invoices.length === 0 ? (
         <p className="no-results">No invoices found</p>
       ) : (
-        invoices.map((inv) => (
-          <div key={inv.id} className="invoice-card">
-            <div className="invoice-card-header">
-              <div>
-                <span className="stat-label">Date</span>
-                <div className="stat-value">{formatDate(inv.invoiceDate)}</div>
+        <>
+          {invoices.map((inv) => (
+            <div key={inv.id} className="invoice-card">
+              <div className="invoice-card-header">
+                <div>
+                  <span className="stat-label">Date</span>
+                  <div className="stat-value">
+                    {formatDate(inv.invoiceDate)}
+                  </div>
+                </div>
+                <span className="status-badge">{inv.paymentStatus}</span>
               </div>
-              <span className="status-badge status-paid">
-                {inv.paymentStatus}
-              </span>
-            </div>
 
-            <div className="invoice-grid">
-              <div className="invoice-stat">
-                <span className="stat-label">Customer</span>
-                <span className="stat-value">{inv.customer?.name}</span>
+              <div className="invoice-grid">
+                <div className="invoice-stat">
+                  <span className="stat-label">Customer</span>
+                  <span className="stat-value">{inv.customer?.name}</span>
+                </div>
+                <div className="invoice-stat">
+                  <span className="stat-label">Total</span>
+                  <span className="stat-value">
+                    Rs {formatMoney(inv.totalAmount)}
+                  </span>
+                </div>
               </div>
-              <div className="invoice-stat">
-                <span className="stat-label">Total</span>
-                <span className="stat-value">
-                  Rs {formatMoney(inv.totalAmount)}
-                </span>
-              </div>
-            </div>
 
-            <button className="pdf-btn" onClick={() => generateInvoicePDF(inv)}>
-              Download Invoice PDF
+              <button
+                className="pdf-btn"
+                onClick={() => generateInvoicePDF(inv)}
+              >
+                Download Invoice PDF
+              </button>
+            </div>
+          ))}
+
+          <div className="pagination">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => loadInvoices(currentPage - 1)}
+            >
+              Prev
+            </button>
+
+            {[...Array(totalPages)].map((_, index) => {
+              const pageNumber = index + 1;
+              return (
+                <button
+                  key={pageNumber}
+                  className={currentPage === pageNumber ? "active-page" : ""}
+                  onClick={() => loadInvoices(pageNumber)}
+                >
+                  {pageNumber}
+                </button>
+              );
+            })}
+
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => loadInvoices(currentPage + 1)}
+            >
+              Next
             </button>
           </div>
-        ))
+        </>
       )}
     </div>
   );

@@ -108,7 +108,7 @@ const Dashboard = () => {
 
         {/* Financial Overview */}
         <section className="card">
-          <h2>Revenue Overview</h2>
+          <h2>Revenue overview for this month ({data.month})</h2>
           <div className="grid">
             <Stat
               label="Total Collected"
@@ -132,7 +132,7 @@ const Dashboard = () => {
 
         {/* Services Status */}
         <section className="card">
-          <h2>Service Status</h2>
+          <h2>Service Status For This Month </h2>
           <div className="grid">
             <Stat
               label="Completed"
