@@ -2,6 +2,7 @@ import { Customer } from "../models/customer.model.js";
 import { addMonths } from "../utils/date.utils.js";
 import { Invoice } from "../models/invoice.model.js";
 import { ROModelInventory } from "../models/roModelInventory.model.js";
+import { Service } from "../models/service.model.js";
 // helper to add months safely
 // const addMonths = (date, months) => {
 //   const d = new Date(date);
@@ -345,7 +346,6 @@ export const getCustomers = async (req, res) => {
 };
 ///// get one customer
 // import { Customer } from "../models/customer.model.js";
-import { Service } from "../models/service.model.js";
 
 export const getCustomerById = async (req, res) => {
   try {
