@@ -299,6 +299,127 @@ export const updateCustomerPayment = async (req, res) => {
   }
 };
 
+export const recordAmcPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      amount,
+      startDate,
+      endDate,
+      paymentDate,
+      notes = "",
+    } = req.body;
+
+    const paidAmount = Number(amount);
+    if (!Number.isFinite(paidAmount) || paidAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "amount must be a positive number",
+      });
+    }
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "startDate and endDate are required",
+      });
+    }
+
+    const normalizedStartDate = new Date(startDate);
+    const normalizedEndDate = new Date(endDate);
+    const normalizedPaymentDate = paymentDate ? new Date(paymentDate) : new Date();
+
+    if (
+      Number.isNaN(normalizedStartDate.getTime()) ||
+      Number.isNaN(normalizedEndDate.getTime()) ||
+      Number.isNaN(normalizedPaymentDate.getTime())
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid startDate, endDate, or paymentDate",
+      });
+    }
+
+    if (normalizedEndDate <= normalizedStartDate) {
+      return res.status(400).json({
+        success: false,
+        message: "endDate must be greater than startDate",
+      });
+    }
+
+    const customer = await Customer.findOne({
+      _id: id,
+      userId: req.userId,
+      isActive: true,
+    });
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    customer.customerType = "AMC";
+    customer.amcContract = {
+      ...(customer.amcContract ? customer.amcContract.toObject() : {}),
+      startDate: normalizedStartDate,
+      endDate: normalizedEndDate,
+      status: "ACTIVE",
+      cancelledAt: null,
+      cancellationReason: "",
+      notes:
+        notes !== undefined && notes !== null
+          ? String(notes)
+          : customer.amcContract?.notes || "",
+      lastPaymentDate: normalizedPaymentDate,
+      lastPaymentAmount: paidAmount,
+    };
+
+    customer.amcContract.status = resolveAmcStatus(customer.amcContract);
+
+    await customer.save();
+
+    const invoice = await Invoice.create({
+      userId: req.userId,
+      customerId: customer._id,
+      type: "AMC_PAYMENT",
+      referenceId: customer._id,
+      invoiceDate: normalizedPaymentDate,
+      items: [
+        {
+          name: "AMC Payment",
+          price: paidAmount,
+        },
+      ],
+      totalAmount: paidAmount,
+      paidAmount,
+      paymentStatus: "PAID",
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "AMC payment recorded successfully",
+      customer: {
+        ...customer.toObject(),
+        amcContract: customer.amcContract
+          ? {
+              ...customer.amcContract.toObject(),
+              status: resolveAmcStatus(customer.amcContract),
+            }
+          : null,
+      },
+      invoice,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to record AMC payment",
+    });
+  }
+};
+
 export const updateCustomer = async (req, res) => {
   try {
     const { id } = req.params;
