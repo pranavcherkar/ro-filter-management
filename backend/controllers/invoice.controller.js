@@ -71,7 +71,7 @@ export const getInvoices = async (req, res) => {
       .sort({ invoiceDate: -1 }) // Latest first
       .skip(skip)
       .limit(perPage)
-      .populate("customerId", "name phone")
+      .populate("customerId", "name phone customerType amcContract")
       .lean();
 
     const formattedInvoices = invoices.map((inv) => ({
@@ -83,6 +83,13 @@ export const getInvoices = async (req, res) => {
         id: inv.customerId?._id,
         name: inv.customerId?.name,
         phone: inv.customerId?.phone,
+        customerType: inv.customerId?.customerType || "REGULAR",
+        amcContract: inv.customerId?.amcContract
+          ? {
+              startDate: inv.customerId?.amcContract?.startDate || null,
+              endDate: inv.customerId?.amcContract?.endDate || null,
+            }
+          : null,
       },
 
       items: inv.items,
