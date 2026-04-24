@@ -509,6 +509,82 @@ export const updateCustomer = async (req, res) => {
   }
 };
 
+export const deleteCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const mode = String(req.body?.mode || "soft").toLowerCase();
+
+    if (!["soft", "hard"].includes(mode)) {
+      return res.status(400).json({
+        success: false,
+        message: "mode must be either 'soft' or 'hard'",
+      });
+    }
+
+    const customer = await Customer.findOne({
+      _id: id,
+      userId: req.userId,
+    });
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    if (mode === "soft") {
+      if (!customer.isActive) {
+        return res.status(200).json({
+          success: true,
+          message: "Customer already inactive",
+          mode,
+        });
+      }
+
+      customer.isActive = false;
+      await customer.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Customer marked inactive",
+        mode,
+      });
+    }
+
+    const [servicesResult, invoicesResult] = await Promise.all([
+      Service.deleteMany({ userId: req.userId, customerId: customer._id }),
+      Invoice.deleteMany({ userId: req.userId, customerId: customer._id }),
+    ]);
+
+    if (customer.roModel) {
+      await ROModelInventory.findOneAndUpdate(
+        { userId: req.userId, modelName: customer.roModel },
+        { $inc: { quantity: 1 }, $setOnInsert: { isActive: true } },
+        { upsert: true, new: true },
+      );
+    }
+
+    await Customer.deleteOne({ _id: customer._id });
+
+    return res.status(200).json({
+      success: true,
+      message: "Customer permanently deleted",
+      mode,
+      deleted: {
+        services: servicesResult.deletedCount || 0,
+        invoices: invoicesResult.deletedCount || 0,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete customer",
+    });
+  }
+};
+
 //////////////////////////////////////////
 //////////////////////////////////////////
 //////////////////////////////////////////

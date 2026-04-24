@@ -4,6 +4,7 @@ import {
   updateCustomerPayment,
   recordAmcPayment,
   updateCustomer,
+  deleteCustomer,
   getCustomers,
   getCustomerById,
 } from "../controllers/customer.controller.js";
@@ -16,6 +17,7 @@ router.post("/", isAuthenticated, createCustomer);
 router.get("/:id", isAuthenticated, getCustomerById);
 /* GENERIC UPDATE (address, phone, roModel, location, etc.) */
 router.patch("/:id", isAuthenticated, updateCustomer);
+router.delete("/:id", isAuthenticated, deleteCustomer);
 router.patch("/:id/payment", isAuthenticated, updateCustomerPayment);
 router.post("/:id/amc-payment", isAuthenticated, recordAmcPayment);
 
