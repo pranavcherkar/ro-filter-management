@@ -328,6 +328,12 @@
   align-items: center;
 }
 
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .modal-header h3 {
   color: #1e40af;
 }
