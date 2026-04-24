@@ -66,6 +66,7 @@ const InvoicesList = () => {
 
   const formatDate = (date) => new Date(date).toLocaleDateString("en-IN");
   const formatMoney = (value) => Number(value || 0).toLocaleString("en-IN");
+  const invoiceTypeLabel = (invoiceType) => getEnumLabel("invoiceType", invoiceType);
 
   const generateInvoicePDF = (inv) => {
     const doc = new jsPDF();
@@ -100,8 +101,11 @@ const InvoicesList = () => {
     doc.text(`Date: ${formatDate(inv.invoiceDate)}`, 200, 40, {
       align: "right",
     });
+    doc.text(`Type: ${invoiceTypeLabel(inv.type)}`, 200, 45, {
+      align: "right",
+    });
 
-    doc.line(20, 48, 200, 48);
+    doc.line(20, 52, 200, 52);
 
     y = 60;
     doc.setFont("helvetica", "bold");
@@ -113,6 +117,25 @@ const InvoicesList = () => {
     y += 6;
     doc.text(`Phone: ${inv.customer?.phone || ""}`, 20, y);
 
+    if (
+      inv.customer?.customerType === "AMC" &&
+      inv.customer?.amcContract?.startDate &&
+      inv.customer?.amcContract?.endDate
+    ) {
+      y += 6;
+      doc.text(
+        `AMC Plan Period: ${formatDate(inv.customer.amcContract.startDate)} - ${formatDate(inv.customer.amcContract.endDate)}`,
+        20,
+        y
+      );
+      y += 6;
+      doc.text(
+        `AMC Renewal Date: ${formatDate(inv.customer.amcContract.endDate)}`,
+        20,
+        y
+      );
+    }
+
     const rows = inv.items.map((item, index) => [
       index + 1,
       item.name,
@@ -120,7 +143,7 @@ const InvoicesList = () => {
     ]);
 
     autoTable(doc, {
-      startY: 80,
+      startY: y + 10,
       head: [["#", "Description", "Amount (Rs)"]],
       body: rows,
       theme: "grid",
