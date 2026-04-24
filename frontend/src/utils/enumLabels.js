@@ -7,6 +7,7 @@ const ENUM_LABELS = {
   invoiceType: {
     FILTER_SALE: "Filter Sale",
     SERVICE: "Service",
+    AMC_PAYMENT: "AMC Payment",
   },
   paymentStatus: {
     PAID: "Paid",

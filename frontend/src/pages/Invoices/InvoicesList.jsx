@@ -165,6 +165,7 @@ const InvoicesList = () => {
           <option value="">All Types</option>
           <option value="FILTER_SALE">Filter Sale</option>
           <option value="SERVICE">Service</option>
+          <option value="AMC_PAYMENT">AMC Payment</option>
         </select>
 
         <select
@@ -213,6 +214,12 @@ const InvoicesList = () => {
               </div>
 
               <div className="invoice-grid">
+                <div className="invoice-stat">
+                  <span className="stat-label">Type</span>
+                  <span className="stat-value">
+                    {getEnumLabel("invoiceType", inv.type)}
+                  </span>
+                </div>
                 <div className="invoice-stat">
                   <span className="stat-label">Customer</span>
                   <span className="stat-value">{inv.customer?.name}</span>
