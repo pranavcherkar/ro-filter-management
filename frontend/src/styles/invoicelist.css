@@ -120,6 +120,32 @@
   background: #1d4ed8;
 }
 
+.invoice-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.delete-btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: #dc2626;
+  color: white;
+  font-weight: 600;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .no-results {
   text-align: center;
   margin-top: 40px;
