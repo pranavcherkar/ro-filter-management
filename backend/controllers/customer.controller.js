@@ -3,6 +3,48 @@ import { addMonths } from "../utils/date.utils.js";
 import { Invoice } from "../models/invoice.model.js";
 import { ROModelInventory } from "../models/roModelInventory.model.js";
 import { Service } from "../models/service.model.js";
+
+const resolveAmcStatus = (amcContract) => {
+  if (!amcContract) return null;
+
+  if (amcContract.status === "CANCELLED") return "CANCELLED";
+
+  if (amcContract.endDate) {
+    const now = new Date();
+    const endDate = new Date(amcContract.endDate);
+
+    if (endDate < now) return "EXPIRED";
+  }
+
+  return "ACTIVE";
+};
+
+const normalizeAmcContract = (customerType, amcContractInput) => {
+  if (customerType !== "AMC") return null;
+  if (!amcContractInput || !amcContractInput.startDate || !amcContractInput.endDate) {
+    return null;
+  }
+
+  const normalized = {
+    startDate: new Date(amcContractInput.startDate),
+    endDate: new Date(amcContractInput.endDate),
+    status: amcContractInput.status || "ACTIVE",
+    cancelledAt: null,
+    cancellationReason: "",
+    notes: amcContractInput.notes || "",
+  };
+
+  if (normalized.status === "CANCELLED") {
+    normalized.cancelledAt = amcContractInput.cancelledAt
+      ? new Date(amcContractInput.cancelledAt)
+      : new Date();
+    normalized.cancellationReason = amcContractInput.cancellationReason || "";
+  }
+
+  normalized.status = resolveAmcStatus(normalized);
+
+  return normalized;
+};
 // helper to add months safely
 // const addMonths = (date, months) => {
 //   const d = new Date(date);
@@ -20,6 +62,8 @@ export const createCustomer = async (req, res) => {
       address,
       roModel,
       roBodyType,
+      customerType = "REGULAR",
+      amcContract,
       installationDate,
       filterPrice = 0,
       initialPaidAmount = 0, // ✅ match frontend
@@ -33,6 +77,16 @@ export const createCustomer = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Required fields missing",
+      });
+    }
+
+    if (
+      customerType === "AMC" &&
+      (!amcContract || !amcContract.startDate || !amcContract.endDate)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "AMC customers require contract startDate and endDate",
       });
     }
 
@@ -97,6 +151,8 @@ export const createCustomer = async (req, res) => {
       address,
       roModel,
       roBodyType,
+      customerType,
+      amcContract: normalizeAmcContract(customerType, amcContract),
       installationDate: installDateObj,
       filterPrice: price,
       filterPaidAmount: paid,
@@ -205,6 +261,14 @@ export const updateCustomerPayment = async (req, res) => {
 export const updateCustomer = async (req, res) => {
   try {
     const { id } = req.params;
+    const existingCustomer = await Customer.findById(id);
+
+    if (!existingCustomer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
 
     const allowedUpdates = [
       "name",
@@ -212,6 +276,7 @@ export const updateCustomer = async (req, res) => {
       "address",
       "roModel",
       "roBodyType",
+      "customerType",
       "location",
       "isActive",
     ];
@@ -224,18 +289,32 @@ export const updateCustomer = async (req, res) => {
       }
     }
 
+    if (req.body.amcContract !== undefined || req.body.customerType !== undefined) {
+      const effectiveType =
+        updates.customerType || req.body.customerType || existingCustomer.customerType;
+      const inputContract =
+        req.body.amcContract !== undefined
+          ? req.body.amcContract
+          : existingCustomer.amcContract;
+
+      if (
+        effectiveType === "AMC" &&
+        (!inputContract || !inputContract.startDate || !inputContract.endDate)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "AMC customers require contract startDate and endDate",
+        });
+      }
+
+      updates.amcContract = normalizeAmcContract(effectiveType, inputContract);
+    }
+
     const customer = await Customer.findByIdAndUpdate(
       id,
       { $set: updates },
       { new: true },
     );
-
-    if (!customer) {
-      return res.status(404).json({
-        success: false,
-        message: "Customer not found",
-      });
-    }
 
     res.status(200).json({
       success: true,
@@ -264,6 +343,8 @@ export const getCustomers = async (req, res) => {
       status = "active",
       paymentStatus,
       serviceStatus,
+      customerType,
+      amcStatus,
     } = req.query;
 
     const query = {
@@ -277,6 +358,10 @@ export const getCustomers = async (req, res) => {
     // payment status filter
     if (paymentStatus) {
       query.filterPaymentStatus = paymentStatus;
+    }
+
+    if (customerType) {
+      query.customerType = customerType;
     }
 
     // search by name or phone
@@ -294,6 +379,7 @@ export const getCustomers = async (req, res) => {
     const formattedCustomers = customers.map((c) => {
       let serviceStatusComputed = "NONE";
       let daysRemaining = null;
+      const amcStatusComputed = resolveAmcStatus(c.amcContract);
 
       if (c.nextServiceDate) {
         const diff =
@@ -312,6 +398,10 @@ export const getCustomers = async (req, res) => {
         phone: c.phone,
         address: c.address,
         roModel: c.roModel,
+        customerType: c.customerType,
+        amcContract: c.amcContract
+          ? { ...c.amcContract.toObject(), status: amcStatusComputed }
+          : null,
 
         filterPaymentStatus: c.filterPaymentStatus,
         filterPrice: c.filterPrice,
@@ -327,9 +417,15 @@ export const getCustomers = async (req, res) => {
     });
 
     // optional serviceStatus filter (after computation)
-    const finalCustomers = serviceStatus
+    let finalCustomers = serviceStatus
       ? formattedCustomers.filter((c) => c.serviceStatus === serviceStatus)
       : formattedCustomers;
+
+    if (amcStatus) {
+      finalCustomers = finalCustomers.filter(
+        (c) => c.amcContract?.status === amcStatus,
+      );
+    }
 
     res.status(200).json({
       success: true,
@@ -404,6 +500,13 @@ export const getCustomerById = async (req, res) => {
         // RO info
         roModel: customer.roModel,
         roBodyType: customer.roBodyType,
+        customerType: customer.customerType,
+        amcContract: customer.amcContract
+          ? {
+              ...customer.amcContract.toObject(),
+              status: resolveAmcStatus(customer.amcContract),
+            }
+          : null,
         installationDate: customer.installationDate,
 
         // Location (optional)
