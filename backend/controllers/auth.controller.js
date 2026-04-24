@@ -206,3 +206,82 @@ export const updateProfile = async (req, res) => {
     });
   }
 };
+
+export const updateOwnerProfile = async (req, res) => {
+  try {
+    const updates = {};
+
+    const businessInfo = req.body?.businessInfo || {};
+    const serviceCycle = req.body?.serviceCycle || {};
+
+    const fieldsToUpdate = {
+      firstname:
+        req.body.firstname !== undefined
+          ? req.body.firstname
+          : businessInfo.firstname,
+      lastname:
+        req.body.lastname !== undefined ? req.body.lastname : businessInfo.lastname,
+      phone: req.body.phone !== undefined ? req.body.phone : businessInfo.phone,
+      businessName:
+        req.body.businessName !== undefined
+          ? req.body.businessName
+          : businessInfo.businessName,
+      defaultServiceCycleMonths:
+        req.body.defaultServiceCycleMonths !== undefined
+          ? req.body.defaultServiceCycleMonths
+          : serviceCycle.defaultServiceCycleMonths ??
+            serviceCycle.serviceCycleMonths ??
+            req.body.serviceCycleMonths,
+    };
+
+    for (const [key, value] of Object.entries(fieldsToUpdate)) {
+      if (value !== undefined) {
+        updates[key] = value;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "No owner profile fields provided. Send businessInfo and/or serviceCycle values.",
+      });
+    }
+
+    if (updates.defaultServiceCycleMonths !== undefined) {
+      const parsedDefaultCycleMonths = Number(updates.defaultServiceCycleMonths);
+      if (!Number.isFinite(parsedDefaultCycleMonths) || parsedDefaultCycleMonths <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "defaultServiceCycleMonths must be a positive number",
+        });
+      }
+      updates.defaultServiceCycleMonths = parsedDefaultCycleMonths;
+    }
+
+    const stringFields = ["firstname", "lastname", "phone", "businessName"];
+    for (const field of stringFields) {
+      if (updates[field] !== undefined && typeof updates[field] !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: `${field} must be a string`,
+        });
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(req.userId, { $set: updates }, {
+      new: true,
+    }).select("-password");
+
+    return res.status(200).json({
+      success: true,
+      message: "Owner profile updated successfully",
+      user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update owner profile",
+    });
+  }
+};
