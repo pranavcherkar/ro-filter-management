@@ -99,6 +99,20 @@
   cursor: not-allowed;
 }
 
+@media (max-width: 1024px) {
+  .form-page-wrapper {
+    padding: 24px 16px;
+  }
+
+  .form-card {
+    max-width: 760px;
+  }
+
+  .form-body {
+    padding: 30px;
+  }
+}
+
 /* Mobile Adjustments */
 @media (max-width: 767px) {
   .form-page-wrapper {
@@ -117,6 +131,15 @@
   .form-grid {
     grid-template-columns: 1fr;
     gap: 0;
+  }
+
+  .form-header h2 {
+    font-size: 20px;
+  }
+
+  .submit-btn {
+    padding: 14px;
+    font-size: 16px;
   }
 }
 

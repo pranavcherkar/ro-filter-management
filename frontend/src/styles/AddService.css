@@ -157,3 +157,41 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+@media (max-width: 1024px) {
+  .service-form-wrapper {
+    padding: 24px 16px;
+  }
+
+  .service-form-body {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 767px) {
+  .service-form-wrapper {
+    padding: 14px;
+  }
+
+  .service-form-header {
+    padding: 24px 16px;
+  }
+
+  .service-form-header h2 {
+    font-size: 20px;
+  }
+
+  .service-form-body {
+    padding: 18px;
+  }
+
+  .part-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .add-part-btn,
+  .submit-service-btn {
+    width: 100%;
+  }
+}
