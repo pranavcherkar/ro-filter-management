@@ -4,6 +4,26 @@ import { Invoice } from "../models/invoice.model.js";
 import { addMonths } from "../utils/date.utils.js";
 import { InventoryItem } from "../models/inventoryItem.model.js";
 import mongoose from "mongoose";
+import { User } from "../models/user.model.js";
+
+const FALLBACK_SERVICE_CYCLE_MONTHS = 6;
+
+const resolveServiceCycleMonths = ({
+  customerCycleMonthsOverride,
+  ownerDefaultCycleMonths,
+}) => {
+  const parsedOverride = Number(customerCycleMonthsOverride);
+  if (Number.isFinite(parsedOverride) && parsedOverride > 0) {
+    return parsedOverride;
+  }
+
+  const parsedOwnerDefault = Number(ownerDefaultCycleMonths);
+  if (Number.isFinite(parsedOwnerDefault) && parsedOwnerDefault > 0) {
+    return parsedOwnerDefault;
+  }
+
+  return FALLBACK_SERVICE_CYCLE_MONTHS;
+};
 
 export const createService = async (req, res) => {
   try {
@@ -35,6 +55,13 @@ export const createService = async (req, res) => {
     }
 
     const actualServiceDate = serviceDate ? new Date(serviceDate) : new Date();
+    const owner = await User.findById(customer.userId).select(
+      "defaultServiceCycleMonths",
+    );
+    const resolvedServiceCycleMonths = resolveServiceCycleMonths({
+      customerCycleMonthsOverride: customer.serviceCycleMonthsOverride,
+      ownerDefaultCycleMonths: owner?.defaultServiceCycleMonths,
+    });
 
     // 1️⃣ Calculate service amount
     const totalPartsAmount = replacedParts.reduce(
@@ -96,7 +123,7 @@ export const createService = async (req, res) => {
       customer.nextServiceDate =
         nextDates.length > 0
           ? new Date(Math.min(...nextDates))
-          : addMonths(actualServiceDate, 6);
+          : addMonths(actualServiceDate, resolvedServiceCycleMonths);
     }
 
     await customer.save();
