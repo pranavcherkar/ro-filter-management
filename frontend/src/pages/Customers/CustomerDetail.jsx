@@ -16,6 +16,7 @@ const CustomerDetail = () => {
 
   const [selectedService, setSelectedService] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [serviceDeleteLoading, setServiceDeleteLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteMode, setDeleteMode] = useState("soft");
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -24,44 +25,44 @@ const CustomerDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [customerRes, historyRes] = await Promise.all([
-          api.get(`/api/customers/${id}`),
-          api.get(`/api/services/customer/${id}`),
-        ]);
+  const loadData = async () => {
+    try {
+      const [customerRes, historyRes] = await Promise.all([
+        api.get(`/api/customers/${id}`),
+        api.get(`/api/services/customer/${id}`),
+      ]);
 
-        const customerData =
-          customerRes?.data?.customer ||
-          customerRes?.data ||
-          customerRes?.customer ||
-          null;
+      const customerData =
+        customerRes?.data?.customer ||
+        customerRes?.data ||
+        customerRes?.customer ||
+        null;
 
-        if (!customerData) {
-          throw new Error("Customer data not found");
-        }
-
-        setCustomer(customerData);
-
-        const history = Array.isArray(historyRes.services)
-          ? historyRes.services
-          : [];
-
-        history.sort((a, b) => new Date(b.date) - new Date(a.date));
-        setServiceHistory(history);
-      } catch (err) {
-        setError(
-          err.response?.data?.message ||
-            err.message ||
-            "Failed to load customer",
-        );
-      } finally {
-        setLoading(false);
-        setHistoryLoading(false);
+      if (!customerData) {
+        throw new Error("Customer data not found");
       }
-    };
 
+      setCustomer(customerData);
+
+      const history = Array.isArray(historyRes.services)
+        ? historyRes.services
+        : [];
+
+      history.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setServiceHistory(history);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to load customer",
+      );
+    } finally {
+      setLoading(false);
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
   }, [id]);
 
@@ -132,6 +133,26 @@ const CustomerDetail = () => {
   };
 
   const closeModal = () => setSelectedService(null);
+
+  const handleDeleteService = async () => {
+    if (!selectedService?.id || serviceDeleteLoading) return;
+    const confirmed = window.confirm(
+      "Delete this service from history? This cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    try {
+      setServiceDeleteLoading(true);
+      await api.delete(`/api/services/${selectedService.id}`);
+      setSelectedService(null);
+      setHistoryLoading(true);
+      await loadData();
+    } catch (err) {
+      alert(err.message || "Failed to delete service");
+    } finally {
+      setServiceDeleteLoading(false);
+    }
+  };
 
   const closeDeleteModal = () => {
     if (deleteLoading) return;
@@ -371,9 +392,18 @@ const CustomerDetail = () => {
               <>
                 <div className="modal-header">
                   <h3>Service Details</h3>
-                  <button className="close-btn" onClick={closeModal}>
-                    ×
-                  </button>
+                  <div className="modal-header-actions">
+                    <button
+                      className="btn btn-danger"
+                      onClick={handleDeleteService}
+                      disabled={serviceDeleteLoading}
+                    >
+                      {serviceDeleteLoading ? "Deleting..." : "Delete"}
+                    </button>
+                    <button className="close-btn" onClick={closeModal}>
+                      ×
+                    </button>
+                  </div>
                 </div>
 
                 <div className="modal-body">

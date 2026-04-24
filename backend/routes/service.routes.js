@@ -1,6 +1,7 @@
 import express from "express";
 import {
   createService,
+  deleteService,
   getAllServices,
   getServiceById,
   getServicesByCustomer,
@@ -11,6 +12,7 @@ const router = express.Router();
 
 router.post("/", isAuthenticated, createService);
 router.get("/", isAuthenticated, getAllServices);
-router.get("/:id", isAuthenticated, getServiceById);
 router.get("/customer/:customerId", isAuthenticated, getServicesByCustomer);
+router.get("/:id", isAuthenticated, getServiceById);
+router.delete("/:id", isAuthenticated, deleteService);
 export default router;

@@ -25,6 +25,66 @@ const resolveServiceCycleMonths = ({
   return FALLBACK_SERVICE_CYCLE_MONTHS;
 };
 
+const recomputeCustomerServiceSchedule = async (customer, ownerDefaultCycleMonths) => {
+  const resolvedServiceCycleMonths = resolveServiceCycleMonths({
+    customerCycleMonthsOverride: customer.serviceCycleMonthsOverride,
+    ownerDefaultCycleMonths,
+  });
+
+  const baselineDate = customer.installationDate
+    ? new Date(customer.installationDate)
+    : new Date();
+
+  const recalculatedFilters = customer.filters.map((filter) => ({
+    ...filter.toObject(),
+    lastChangedDate: baselineDate,
+  }));
+
+  const serviceHistory = await Service.find({
+    userId: customer.userId,
+    customerId: customer._id,
+    affectsServiceCycle: true,
+  })
+    .sort({ serviceDate: 1 })
+    .select("serviceDate replacedParts")
+    .lean();
+
+  serviceHistory.forEach((service) => {
+    const serviceDate = new Date(service.serviceDate);
+    recalculatedFilters.forEach((filter) => {
+      const wasFilterReplaced = service.replacedParts?.some(
+        (part) => part.partName === filter.name,
+      );
+
+      if (wasFilterReplaced) {
+        filter.lastChangedDate = serviceDate;
+      }
+    });
+  });
+
+  const latestService = serviceHistory[serviceHistory.length - 1] || null;
+
+  customer.filters = recalculatedFilters;
+  customer.lastServiceDate = latestService
+    ? new Date(latestService.serviceDate)
+    : null;
+
+  const nextDates = recalculatedFilters.map((filter) =>
+    addMonths(filter.lastChangedDate, filter.intervalMonths),
+  );
+
+  if (nextDates.length > 0) {
+    customer.nextServiceDate = new Date(Math.min(...nextDates));
+  } else if (customer.lastServiceDate) {
+    customer.nextServiceDate = addMonths(
+      customer.lastServiceDate,
+      resolvedServiceCycleMonths,
+    );
+  } else {
+    customer.nextServiceDate = addMonths(baselineDate, resolvedServiceCycleMonths);
+  }
+};
+
 export const createService = async (req, res) => {
   try {
     const userId = req.userId;
@@ -380,6 +440,77 @@ export const getServicesByCustomer = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch service history",
+    });
+  }
+};
+
+export const deleteService = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid service ID",
+      });
+    }
+
+    const service = await Service.findOne({
+      _id: id,
+      userId: req.userId,
+    });
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: "Service not found",
+      });
+    }
+
+    const customer = await Customer.findOne({
+      _id: service.customerId,
+      userId: req.userId,
+    });
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found for this service",
+      });
+    }
+
+    await Service.deleteOne({ _id: service._id });
+
+    await Invoice.deleteMany({
+      userId: req.userId,
+      customerId: customer._id,
+      type: "SERVICE",
+      referenceId: service._id,
+    });
+
+    const owner = await User.findById(customer.userId).select(
+      "defaultServiceCycleMonths",
+    );
+
+    await recomputeCustomerServiceSchedule(
+      customer,
+      owner?.defaultServiceCycleMonths,
+    );
+    await customer.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Service deleted successfully",
+      customerService: {
+        lastServiceDate: customer.lastServiceDate,
+        nextServiceDate: customer.nextServiceDate,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete service",
     });
   }
 };
