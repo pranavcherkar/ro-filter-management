@@ -198,6 +198,10 @@
   background: linear-gradient(to right, #ffffff, #f0f9ff);
 }
 
+.amc-card {
+  background: linear-gradient(to right, #ffffff, #eff6ff);
+}
+
 .financial-summary-row {
   display: flex;
   justify-content: space-between;
@@ -219,6 +223,13 @@
   font-size: 22px;
   font-weight: 800;
   color: #1e40af;
+}
+
+.amc-action-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
 }
 
 /* ================= SERVICE HISTORY ================= */

@@ -76,6 +76,27 @@ const CustomerDetail = () => {
     return String(val);
   };
 
+  const calculateAmcDaysLeft = (amcEndDate, amcStatus) => {
+    if (!amcEndDate || amcStatus === "CANCELLED") return "-";
+
+    const daysLeft = Math.ceil(
+      (new Date(amcEndDate) - new Date()) / (1000 * 60 * 60 * 24),
+    );
+
+    return daysLeft < 0 ? "Expired" : `${daysLeft} days`;
+  };
+
+  const getLastAmcPayment = () => {
+    const amount =
+      customer?.amcLastPayment?.amount ??
+      customer?.amcContract?.lastPaymentAmount ??
+      null;
+    const date =
+      customer?.amcLastPayment?.date ?? customer?.amcContract?.lastPaymentDate;
+
+    return { amount, date };
+  };
+
   const getBadgeClass = (status) => {
     const s = String(status || "").toLowerCase();
     return ["paid", "active", "completed"].includes(s)
@@ -86,6 +107,13 @@ const CustomerDetail = () => {
   const isPaid =
     customer?.payment?.status &&
     customer.payment.status.toLowerCase() === "paid";
+
+  const amcStatus = customer?.amcContract?.status || "NOT STARTED";
+  const amcDaysLeft = calculateAmcDaysLeft(
+    customer?.amcContract?.endDate,
+    amcStatus,
+  );
+  const lastAmcPayment = getLastAmcPayment();
 
   const openServiceModal = async (serviceId) => {
     try {
@@ -227,6 +255,46 @@ const CustomerDetail = () => {
                 ₹{renderSafeValue(customer.payment?.pendingAmount)}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* AMC DETAILS */}
+        <div className="detail-card amc-card">
+          <div className="section-title">🛡️ AMC Details</div>
+
+          <div className="info-row">
+            <span className="info-label">AMC Status</span>
+            <span className={getBadgeClass(amcStatus)}>
+              {getEnumLabel("amcStatus", amcStatus)}
+            </span>
+          </div>
+
+          <div className="info-row">
+            <span className="info-label">Start Date / End Date</span>
+            <span className="info-value">
+              {formatDate(customer?.amcContract?.startDate)} /{" "}
+              {formatDate(customer?.amcContract?.endDate)}
+            </span>
+          </div>
+
+          <div className="info-row">
+            <span className="info-label">Days Left</span>
+            <span className="info-value">{amcDaysLeft}</span>
+          </div>
+
+          <div className="info-row">
+            <span className="info-label">Last AMC payment amount/date</span>
+            <span className="info-value">
+              {lastAmcPayment.amount ? `₹${lastAmcPayment.amount}` : "-"} /{" "}
+              {formatDate(lastAmcPayment.date)}
+            </span>
+          </div>
+
+          <div className="amc-action-panel">
+            <button className="btn btn-primary">Start AMC</button>
+            <button className="btn btn-outline">Renew AMC</button>
+            <button className="btn btn-outline">Stop AMC</button>
+            <button className="btn btn-outline">Record AMC Payment</button>
           </div>
         </div>
 
