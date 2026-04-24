@@ -5,6 +5,7 @@ import ErrorState from "../../components/ErrorState";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import "../../styles/invoicelist.css";
+import { getEnumLabel } from "../../utils/enumLabels";
 
 const InvoicesList = () => {
   const [invoices, setInvoices] = useState([]);
@@ -20,6 +21,7 @@ const InvoicesList = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState("");
   const limit = 20;
 
   const loadInvoices = async (page = 1) => {
@@ -65,6 +67,7 @@ const InvoicesList = () => {
 
   const formatDate = (date) => new Date(date).toLocaleDateString("en-IN");
   const formatMoney = (value) => Number(value || 0).toLocaleString("en-IN");
+  const invoiceTypeLabel = (invoiceType) => getEnumLabel("invoiceType", invoiceType);
 
   const generateInvoicePDF = (inv) => {
     const doc = new jsPDF();
@@ -99,8 +102,11 @@ const InvoicesList = () => {
     doc.text(`Date: ${formatDate(inv.invoiceDate)}`, 200, 40, {
       align: "right",
     });
+    doc.text(`Type: ${invoiceTypeLabel(inv.type)}`, 200, 45, {
+      align: "right",
+    });
 
-    doc.line(20, 48, 200, 48);
+    doc.line(20, 52, 200, 52);
 
     y = 60;
     doc.setFont("helvetica", "bold");
@@ -112,6 +118,25 @@ const InvoicesList = () => {
     y += 6;
     doc.text(`Phone: ${inv.customer?.phone || ""}`, 20, y);
 
+    if (
+      inv.customer?.customerType === "AMC" &&
+      inv.customer?.amcContract?.startDate &&
+      inv.customer?.amcContract?.endDate
+    ) {
+      y += 6;
+      doc.text(
+        `AMC Plan Period: ${formatDate(inv.customer.amcContract.startDate)} - ${formatDate(inv.customer.amcContract.endDate)}`,
+        20,
+        y
+      );
+      y += 6;
+      doc.text(
+        `AMC Renewal Date: ${formatDate(inv.customer.amcContract.endDate)}`,
+        20,
+        y
+      );
+    }
+
     const rows = inv.items.map((item, index) => [
       index + 1,
       item.name,
@@ -119,7 +144,7 @@ const InvoicesList = () => {
     ]);
 
     autoTable(doc, {
-      startY: 80,
+      startY: y + 10,
       head: [["#", "Description", "Amount (Rs)"]],
       body: rows,
       theme: "grid",
@@ -146,6 +171,31 @@ const InvoicesList = () => {
     doc.save(`invoice_${inv.customer?.name}.pdf`);
   };
 
+  const handleDeleteInvoice = async (invoice) => {
+    const confirmed = window.confirm(
+      `Delete invoice for ${invoice.customer?.name || "this customer"} on ${formatDate(invoice.invoiceDate)}? This cannot be undone.`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingInvoiceId(invoice.id);
+      setError("");
+      const response = await api.delete(`/api/invoices/${invoice.id}`);
+
+      await loadInvoices(currentPage);
+      if (response?.message) {
+        window.alert(response.message);
+      }
+    } catch (err) {
+      const message = err?.message || "Failed to delete invoice";
+      setError(message);
+      window.alert(message);
+    } finally {
+      setDeletingInvoiceId("");
+    }
+  };
+
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} />;
 
@@ -164,6 +214,7 @@ const InvoicesList = () => {
           <option value="">All Types</option>
           <option value="FILTER_SALE">Filter Sale</option>
           <option value="SERVICE">Service</option>
+          <option value="AMC_PAYMENT">AMC Payment</option>
         </select>
 
         <select
@@ -208,10 +259,16 @@ const InvoicesList = () => {
                     {formatDate(inv.invoiceDate)}
                   </div>
                 </div>
-                <span className="status-badge">{inv.paymentStatus}</span>
+                <span className="status-badge">{getEnumLabel("paymentStatus", inv.paymentStatus)}</span>
               </div>
 
               <div className="invoice-grid">
+                <div className="invoice-stat">
+                  <span className="stat-label">Type</span>
+                  <span className="stat-value">
+                    {getEnumLabel("invoiceType", inv.type)}
+                  </span>
+                </div>
                 <div className="invoice-stat">
                   <span className="stat-label">Customer</span>
                   <span className="stat-value">{inv.customer?.name}</span>
@@ -224,12 +281,22 @@ const InvoicesList = () => {
                 </div>
               </div>
 
-              <button
-                className="pdf-btn"
-                onClick={() => generateInvoicePDF(inv)}
-              >
-                Download Invoice PDF
-              </button>
+              <div className="invoice-actions">
+                <button
+                  className="pdf-btn"
+                  onClick={() => generateInvoicePDF(inv)}
+                >
+                  Download Invoice PDF
+                </button>
+
+                <button
+                  className="delete-btn"
+                  onClick={() => handleDeleteInvoice(inv)}
+                  disabled={deletingInvoiceId === inv.id}
+                >
+                  {deletingInvoiceId === inv.id ? "Deleting..." : "Delete Invoice"}
+                </button>
+              </div>
             </div>
           ))}
 

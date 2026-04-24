@@ -3,6 +3,7 @@ import api from "../../api/apiClient";
 import Loading from "../../components/Loading";
 import ErrorState from "../../components/ErrorState";
 import "../../styles/servList.css";
+import { getEnumLabel } from "../../utils/enumLabels";
 
 const ServicesList = () => {
   const [services, setServices] = useState([]);
@@ -16,6 +17,7 @@ const ServicesList = () => {
 
   const [selectedService, setSelectedService] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -59,7 +61,7 @@ const ServicesList = () => {
       setModalLoading(true);
       const res = await api.get(`/api/services/${id}`);
       setSelectedService(res.service);
-    } catch (err) {
+    } catch {
       alert("Failed to load service details");
     } finally {
       setModalLoading(false);
@@ -68,6 +70,25 @@ const ServicesList = () => {
 
   const closeModal = () => {
     setSelectedService(null);
+  };
+
+  const handleDeleteService = async () => {
+    if (!selectedService?.id || deleteLoading) return;
+    const confirmed = window.confirm(
+      "Delete this service? This cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeleteLoading(true);
+      await api.delete(`/api/services/${selectedService.id}`);
+      setSelectedService(null);
+      await loadServices(currentPage);
+    } catch (err) {
+      alert(err.message || "Failed to delete service");
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -147,7 +168,7 @@ const ServicesList = () => {
               <div>
                 <strong>Service Type</strong>
                 <span className="service-type-badge">
-                  {service.serviceType}
+                  {getEnumLabel("serviceType", service.serviceType)}
                 </span>
               </div>
 
@@ -198,9 +219,18 @@ const ServicesList = () => {
               <>
                 <div className="modal-header">
                   <h3>Service Details</h3>
-                  <button className="close-btn" onClick={closeModal}>
-                    ×
-                  </button>
+                  <div className="modal-header-actions">
+                    <button
+                      className="modal-delete-btn"
+                      onClick={handleDeleteService}
+                      disabled={deleteLoading}
+                    >
+                      {deleteLoading ? "Deleting..." : "Delete"}
+                    </button>
+                    <button className="close-btn" onClick={closeModal}>
+                      ×
+                    </button>
+                  </div>
                 </div>
 
                 <div className="modal-body">
@@ -226,7 +256,7 @@ const ServicesList = () => {
 
                   <div className="modal-section">
                     <strong>Service Type</strong>
-                    <p>{selectedService.serviceType}</p>
+                    <p>{getEnumLabel("serviceType", selectedService.serviceType)}</p>
                   </div>
 
                   <div className="modal-section">

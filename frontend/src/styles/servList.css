@@ -140,6 +140,27 @@
   margin-bottom: 18px;
 }
 
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-delete-btn {
+  background: #b91c1c;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.modal-delete-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .modal-header h3 {
   color: #1e40af;
 }

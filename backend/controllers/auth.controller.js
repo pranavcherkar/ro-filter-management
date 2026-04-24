@@ -39,7 +39,12 @@ export const login = async (req, res) => {
       sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-
+    // res.cookie("token", token, {
+    //   httpOnly: true,
+    //   secure: false,
+    //   sameSite: "lax",
+    //   maxAge: 7 * 24 * 60 * 60 * 1000,
+    // });
     res.status(200).json({
       message: "Login successful",
       success: true,
@@ -49,6 +54,7 @@ export const login = async (req, res) => {
         lastname: user.lastname,
         email: user.email,
         businessName: user.businessName,
+        defaultServiceCycleMonths: user.defaultServiceCycleMonths,
       },
     });
   } catch (error) {
@@ -61,7 +67,15 @@ export const login = async (req, res) => {
 
 export const register = async (req, res) => {
   try {
-    const { firstname, lastname, email, password, phone, businessName } =
+    const {
+      firstname,
+      lastname,
+      email,
+      password,
+      phone,
+      businessName,
+      defaultServiceCycleMonths,
+    } =
       req.body;
 
     if (!firstname || !lastname || !email || !password) {
@@ -80,6 +94,21 @@ export const register = async (req, res) => {
       });
     }
 
+    const parsedDefaultCycleMonths =
+      defaultServiceCycleMonths === undefined
+        ? undefined
+        : Number(defaultServiceCycleMonths);
+
+    if (
+      parsedDefaultCycleMonths !== undefined &&
+      (!Number.isFinite(parsedDefaultCycleMonths) || parsedDefaultCycleMonths <= 0)
+    ) {
+      return res.status(400).json({
+        message: "defaultServiceCycleMonths must be a positive number",
+        success: false,
+      });
+    }
+
     // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -89,6 +118,7 @@ export const register = async (req, res) => {
       email,
       phone,
       businessName,
+      defaultServiceCycleMonths: parsedDefaultCycleMonths,
       password: hashedPassword,
     });
 
@@ -100,12 +130,158 @@ export const register = async (req, res) => {
         firstname: user.firstname,
         lastname: user.lastname,
         email: user.email,
+        defaultServiceCycleMonths: user.defaultServiceCycleMonths,
       },
     });
   } catch (error) {
     res.status(500).json({
       message: "Failed to create user",
       success: false,
+    });
+  }
+};
+
+export const logout = async (req, res) => {
+  try {
+    res.cookie("token", "", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      expires: new Date(0), // expire immediately
+    });
+
+    res.status(200).json({
+      message: "Logged out successfully",
+      success: true,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Logout failed",
+      success: false,
+    });
+  }
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const allowedUpdates = [
+      "firstname",
+      "lastname",
+      "phone",
+      "businessName",
+      "defaultServiceCycleMonths",
+    ];
+
+    const updates = {};
+    for (const key of allowedUpdates) {
+      if (req.body[key] !== undefined) {
+        updates[key] = req.body[key];
+      }
+    }
+
+    if (updates.defaultServiceCycleMonths !== undefined) {
+      const parsedDefaultCycleMonths = Number(updates.defaultServiceCycleMonths);
+      if (!Number.isFinite(parsedDefaultCycleMonths) || parsedDefaultCycleMonths <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "defaultServiceCycleMonths must be a positive number",
+        });
+      }
+      updates.defaultServiceCycleMonths = parsedDefaultCycleMonths;
+    }
+
+    const user = await User.findByIdAndUpdate(req.userId, { $set: updates }, {
+      new: true,
+    }).select("-password");
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update profile",
+    });
+  }
+};
+
+export const updateOwnerProfile = async (req, res) => {
+  try {
+    const updates = {};
+
+    const businessInfo = req.body?.businessInfo || {};
+    const serviceCycle = req.body?.serviceCycle || {};
+
+    const fieldsToUpdate = {
+      firstname:
+        req.body.firstname !== undefined
+          ? req.body.firstname
+          : businessInfo.firstname,
+      lastname:
+        req.body.lastname !== undefined ? req.body.lastname : businessInfo.lastname,
+      phone: req.body.phone !== undefined ? req.body.phone : businessInfo.phone,
+      businessName:
+        req.body.businessName !== undefined
+          ? req.body.businessName
+          : businessInfo.businessName,
+      defaultServiceCycleMonths:
+        req.body.defaultServiceCycleMonths !== undefined
+          ? req.body.defaultServiceCycleMonths
+          : serviceCycle.defaultServiceCycleMonths ??
+            serviceCycle.serviceCycleMonths ??
+            req.body.serviceCycleMonths,
+    };
+
+    for (const [key, value] of Object.entries(fieldsToUpdate)) {
+      if (value !== undefined) {
+        updates[key] = value;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "No owner profile fields provided. Send businessInfo and/or serviceCycle values.",
+      });
+    }
+
+    if (updates.defaultServiceCycleMonths !== undefined) {
+      const parsedDefaultCycleMonths = Number(updates.defaultServiceCycleMonths);
+      if (!Number.isFinite(parsedDefaultCycleMonths) || parsedDefaultCycleMonths <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "defaultServiceCycleMonths must be a positive number",
+        });
+      }
+      updates.defaultServiceCycleMonths = parsedDefaultCycleMonths;
+    }
+
+    const stringFields = ["firstname", "lastname", "phone", "businessName"];
+    for (const field of stringFields) {
+      if (updates[field] !== undefined && typeof updates[field] !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: `${field} must be a string`,
+        });
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(req.userId, { $set: updates }, {
+      new: true,
+    }).select("-password");
+
+    return res.status(200).json({
+      success: true,
+      message: "Owner profile updated successfully",
+      user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update owner profile",
     });
   }
 };

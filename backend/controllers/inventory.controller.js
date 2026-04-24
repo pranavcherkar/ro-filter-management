@@ -4,7 +4,7 @@ import { DEFAULT_PARTS } from "../utils/defaultInventory.js";
 export const getInventoryParts = async (req, res) => {
   try {
     const userId = req.userId;
-    // console.log("User ID:", req.userId);
+
     let items = await InventoryItem.find({ userId }).sort({ name: 1 });
 
     // ✅ Seed defaults if empty

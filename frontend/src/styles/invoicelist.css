@@ -120,6 +120,32 @@
   background: #1d4ed8;
 }
 
+.invoice-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.delete-btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: #dc2626;
+  color: white;
+  font-weight: 600;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .no-results {
   text-align: center;
   margin-top: 40px;
@@ -157,4 +183,61 @@
   background: #1e40af !important;
   color: white !important;
   border-color: #1e40af;
+}
+
+@media (max-width: 1024px) {
+  .invoices-wrapper {
+    padding: 18px 14px;
+  }
+
+  .invoice-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .invoices-wrapper {
+    padding: 14px 10px;
+  }
+
+  .invoices-title {
+    font-size: 24px;
+    margin-bottom: 16px;
+  }
+
+  .invoice-filters {
+    grid-template-columns: 1fr;
+    padding: 14px;
+    gap: 10px;
+  }
+
+  .apply-btn {
+    width: 100%;
+  }
+
+  .invoice-card {
+    padding: 14px;
+  }
+
+  .invoice-card-header {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .invoice-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .invoice-actions {
+    flex-direction: column;
+  }
+
+  .invoice-actions .pdf-btn,
+  .invoice-actions .delete-btn {
+    width: 100%;
+    margin-top: 0;
+    text-align: center;
+  }
 }

@@ -1,5 +1,7 @@
 import { Invoice } from "../models/invoice.model.js";
 import { Customer } from "../models/customer.model.js";
+import { Service } from "../models/service.model.js";
+import mongoose from "mongoose";
 
 export const getInvoices = async (req, res) => {
   try {
@@ -71,7 +73,7 @@ export const getInvoices = async (req, res) => {
       .sort({ invoiceDate: -1 }) // Latest first
       .skip(skip)
       .limit(perPage)
-      .populate("customerId", "name phone")
+      .populate("customerId", "name phone customerType amcContract")
       .lean();
 
     const formattedInvoices = invoices.map((inv) => ({
@@ -83,6 +85,13 @@ export const getInvoices = async (req, res) => {
         id: inv.customerId?._id,
         name: inv.customerId?.name,
         phone: inv.customerId?.phone,
+        customerType: inv.customerId?.customerType || "REGULAR",
+        amcContract: inv.customerId?.amcContract
+          ? {
+              startDate: inv.customerId?.amcContract?.startDate || null,
+              endDate: inv.customerId?.amcContract?.endDate || null,
+            }
+          : null,
       },
 
       items: inv.items,
@@ -106,6 +115,112 @@ export const getInvoices = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch invoices",
+    });
+  }
+};
+
+export const deleteInvoice = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid invoice ID",
+      });
+    }
+
+    const invoice = await Invoice.findOne({
+      _id: id,
+      userId: req.userId,
+    });
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: "Invoice not found",
+      });
+    }
+
+    const customer = await Customer.findOne({
+      _id: invoice.customerId,
+      userId: req.userId,
+    });
+
+    if (!customer) {
+      return res.status(409).json({
+        success: false,
+        message: "Invoice customer mismatch or missing. Cannot delete safely.",
+      });
+    }
+
+    if (invoice.type === "SERVICE") {
+      const linkedService = await Service.findOne({
+        _id: invoice.referenceId,
+        customerId: invoice.customerId,
+        userId: req.userId,
+      });
+
+      if (linkedService) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "This invoice is linked to a service record. Delete the service first.",
+        });
+      }
+    }
+
+    if (
+      ["FILTER_SALE", "AMC_PAYMENT"].includes(invoice.type) &&
+      String(invoice.referenceId) !== String(invoice.customerId)
+    ) {
+      return res.status(409).json({
+        success: false,
+        message: "Invoice reference integrity check failed.",
+      });
+    }
+
+    if (invoice.type === "FILTER_SALE" && customer.isActive) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Cannot delete active customer's filter sale invoice. Archive or delete customer first.",
+      });
+    }
+
+    if (
+      invoice.type === "AMC_PAYMENT" &&
+      customer.amcContract?.lastPaymentDate &&
+      customer.amcContract?.lastPaymentAmount
+    ) {
+      const isLatestPaymentRecord =
+        new Date(customer.amcContract.lastPaymentDate).getTime() ===
+          new Date(invoice.invoiceDate).getTime() &&
+        Number(customer.amcContract.lastPaymentAmount) === Number(invoice.paidAmount);
+
+      if (isLatestPaymentRecord) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "Cannot delete latest AMC payment invoice while contract references it.",
+        });
+      }
+    }
+
+    await Invoice.deleteOne({
+      _id: invoice._id,
+      userId: req.userId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Invoice deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete invoice",
     });
   }
 };

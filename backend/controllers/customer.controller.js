@@ -2,6 +2,68 @@ import { Customer } from "../models/customer.model.js";
 import { addMonths } from "../utils/date.utils.js";
 import { Invoice } from "../models/invoice.model.js";
 import { ROModelInventory } from "../models/roModelInventory.model.js";
+import { Service } from "../models/service.model.js";
+
+const FALLBACK_SERVICE_CYCLE_MONTHS = 6;
+
+const resolveServiceCycleMonths = ({
+  customerCycleMonthsOverride,
+  ownerDefaultCycleMonths,
+}) => {
+  const parsedOverride = Number(customerCycleMonthsOverride);
+  if (Number.isFinite(parsedOverride) && parsedOverride > 0) {
+    return parsedOverride;
+  }
+
+  const parsedOwnerDefault = Number(ownerDefaultCycleMonths);
+  if (Number.isFinite(parsedOwnerDefault) && parsedOwnerDefault > 0) {
+    return parsedOwnerDefault;
+  }
+
+  return FALLBACK_SERVICE_CYCLE_MONTHS;
+};
+
+const resolveAmcStatus = (amcContract) => {
+  if (!amcContract) return null;
+
+  if (amcContract.status === "CANCELLED") return "CANCELLED";
+
+  if (amcContract.endDate) {
+    const now = new Date();
+    const endDate = new Date(amcContract.endDate);
+
+    if (endDate < now) return "EXPIRED";
+  }
+
+  return "ACTIVE";
+};
+
+const normalizeAmcContract = (customerType, amcContractInput) => {
+  if (customerType !== "AMC") return null;
+  if (!amcContractInput || !amcContractInput.startDate || !amcContractInput.endDate) {
+    return null;
+  }
+
+  const normalized = {
+    startDate: new Date(amcContractInput.startDate),
+    endDate: new Date(amcContractInput.endDate),
+    status: amcContractInput.status || "ACTIVE",
+    cancelledAt: null,
+    cancellationReason: "",
+    notes: amcContractInput.notes || "",
+  };
+
+  if (normalized.status === "CANCELLED") {
+    normalized.cancelledAt = amcContractInput.cancelledAt
+      ? new Date(amcContractInput.cancelledAt)
+      : new Date();
+    normalized.cancellationReason = amcContractInput.cancellationReason || "";
+  }
+
+  normalized.status = resolveAmcStatus(normalized);
+
+  return normalized;
+};
 // helper to add months safely
 // const addMonths = (date, months) => {
 //   const d = new Date(date);
@@ -19,11 +81,14 @@ export const createCustomer = async (req, res) => {
       address,
       roModel,
       roBodyType,
+      customerType = "REGULAR",
+      amcContract,
       installationDate,
       filterPrice = 0,
       initialPaidAmount = 0, // ✅ match frontend
       lastServiceDate,
       filters,
+      serviceCycleMonthsOverride,
       location,
     } = req.body;
 
@@ -35,12 +100,42 @@ export const createCustomer = async (req, res) => {
       });
     }
 
+    if (
+      customerType === "AMC" &&
+      (!amcContract || !amcContract.startDate || !amcContract.endDate)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "AMC customers require contract startDate and endDate",
+      });
+    }
+
     // Convert safely
     const price = Number(filterPrice) || 0;
     const paid = Number(initialPaidAmount) || 0;
 
     const installDateObj = new Date(installationDate);
     const serviceDateObj = lastServiceDate ? new Date(lastServiceDate) : null;
+    const normalizedServiceCycleOverride =
+      serviceCycleMonthsOverride === undefined || serviceCycleMonthsOverride === null
+        ? null
+        : Number(serviceCycleMonthsOverride);
+
+    if (
+      normalizedServiceCycleOverride !== null &&
+      (!Number.isFinite(normalizedServiceCycleOverride) ||
+        normalizedServiceCycleOverride <= 0)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "serviceCycleMonthsOverride must be a positive number",
+      });
+    }
+
+    const resolvedServiceCycleMonths = resolveServiceCycleMonths({
+      customerCycleMonthsOverride: normalizedServiceCycleOverride,
+      ownerDefaultCycleMonths: req.user?.defaultServiceCycleMonths,
+    });
 
     // 2️⃣ Check RO model stock
     const roStock = await ROModelInventory.findOne({
@@ -69,13 +164,13 @@ export const createCustomer = async (req, res) => {
     let nextServiceDate = null;
 
     if (serviceDateObj) {
-      nextServiceDate = addMonths(serviceDateObj, 6);
+      nextServiceDate = addMonths(serviceDateObj, resolvedServiceCycleMonths);
     } else {
       const now = new Date();
       const diffDays = (now - installDateObj) / (1000 * 60 * 60 * 24);
 
       if (diffDays <= 30) {
-        nextServiceDate = addMonths(installDateObj, 6);
+        nextServiceDate = addMonths(installDateObj, resolvedServiceCycleMonths);
       }
     }
 
@@ -96,7 +191,10 @@ export const createCustomer = async (req, res) => {
       address,
       roModel,
       roBodyType,
+      customerType,
+      amcContract: normalizeAmcContract(customerType, amcContract),
       installationDate: installDateObj,
+      serviceCycleMonthsOverride: normalizedServiceCycleOverride,
       filterPrice: price,
       filterPaidAmount: paid,
       filterPaymentStatus: paymentStatus,
@@ -201,33 +299,59 @@ export const updateCustomerPayment = async (req, res) => {
   }
 };
 
-export const updateCustomer = async (req, res) => {
+export const recordAmcPayment = async (req, res) => {
   try {
     const { id } = req.params;
+    const {
+      amount,
+      startDate,
+      endDate,
+      paymentDate,
+      notes = "",
+    } = req.body;
 
-    const allowedUpdates = [
-      "name",
-      "phone",
-      "address",
-      "roModel",
-      "roBodyType",
-      "location",
-      "isActive",
-    ];
-
-    const updates = {};
-
-    for (const key of allowedUpdates) {
-      if (req.body[key] !== undefined) {
-        updates[key] = req.body[key];
-      }
+    const paidAmount = Number(amount);
+    if (!Number.isFinite(paidAmount) || paidAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "amount must be a positive number",
+      });
     }
 
-    const customer = await Customer.findByIdAndUpdate(
-      id,
-      { $set: updates },
-      { new: true },
-    );
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "startDate and endDate are required",
+      });
+    }
+
+    const normalizedStartDate = new Date(startDate);
+    const normalizedEndDate = new Date(endDate);
+    const normalizedPaymentDate = paymentDate ? new Date(paymentDate) : new Date();
+
+    if (
+      Number.isNaN(normalizedStartDate.getTime()) ||
+      Number.isNaN(normalizedEndDate.getTime()) ||
+      Number.isNaN(normalizedPaymentDate.getTime())
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid startDate, endDate, or paymentDate",
+      });
+    }
+
+    if (normalizedEndDate <= normalizedStartDate) {
+      return res.status(400).json({
+        success: false,
+        message: "endDate must be greater than startDate",
+      });
+    }
+
+    const customer = await Customer.findOne({
+      _id: id,
+      userId: req.userId,
+      isActive: true,
+    });
 
     if (!customer) {
       return res.status(404).json({
@@ -235,6 +359,141 @@ export const updateCustomer = async (req, res) => {
         message: "Customer not found",
       });
     }
+
+    customer.customerType = "AMC";
+    customer.amcContract = {
+      ...(customer.amcContract ? customer.amcContract.toObject() : {}),
+      startDate: normalizedStartDate,
+      endDate: normalizedEndDate,
+      status: "ACTIVE",
+      cancelledAt: null,
+      cancellationReason: "",
+      notes:
+        notes !== undefined && notes !== null
+          ? String(notes)
+          : customer.amcContract?.notes || "",
+      lastPaymentDate: normalizedPaymentDate,
+      lastPaymentAmount: paidAmount,
+    };
+
+    customer.amcContract.status = resolveAmcStatus(customer.amcContract);
+
+    await customer.save();
+
+    const invoice = await Invoice.create({
+      userId: req.userId,
+      customerId: customer._id,
+      type: "AMC_PAYMENT",
+      referenceId: customer._id,
+      invoiceDate: normalizedPaymentDate,
+      items: [
+        {
+          name: "AMC Payment",
+          price: paidAmount,
+        },
+      ],
+      totalAmount: paidAmount,
+      paidAmount,
+      paymentStatus: "PAID",
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "AMC payment recorded successfully",
+      customer: {
+        ...customer.toObject(),
+        amcContract: customer.amcContract
+          ? {
+              ...customer.amcContract.toObject(),
+              status: resolveAmcStatus(customer.amcContract),
+            }
+          : null,
+      },
+      invoice,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to record AMC payment",
+    });
+  }
+};
+
+export const updateCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existingCustomer = await Customer.findById(id);
+
+    if (!existingCustomer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    const allowedUpdates = [
+      "name",
+      "phone",
+      "address",
+      "roModel",
+      "roBodyType",
+      "customerType",
+      "location",
+      "isActive",
+      "serviceCycleMonthsOverride",
+    ];
+
+    const updates = {};
+
+    for (const key of allowedUpdates) {
+      if (req.body[key] !== undefined) {
+        if (key === "serviceCycleMonthsOverride") {
+          if (req.body[key] === null) {
+            updates[key] = null;
+            continue;
+          }
+
+          const parsed = Number(req.body[key]);
+          if (!Number.isFinite(parsed) || parsed <= 0) {
+            return res.status(400).json({
+              success: false,
+              message: "serviceCycleMonthsOverride must be a positive number",
+            });
+          }
+          updates[key] = parsed;
+          continue;
+        }
+        updates[key] = req.body[key];
+      }
+    }
+
+    if (req.body.amcContract !== undefined || req.body.customerType !== undefined) {
+      const effectiveType =
+        updates.customerType || req.body.customerType || existingCustomer.customerType;
+      const inputContract =
+        req.body.amcContract !== undefined
+          ? req.body.amcContract
+          : existingCustomer.amcContract;
+
+      if (
+        effectiveType === "AMC" &&
+        (!inputContract || !inputContract.startDate || !inputContract.endDate)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "AMC customers require contract startDate and endDate",
+        });
+      }
+
+      updates.amcContract = normalizeAmcContract(effectiveType, inputContract);
+    }
+
+    const customer = await Customer.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true },
+    );
 
     res.status(200).json({
       success: true,
@@ -246,6 +505,82 @@ export const updateCustomer = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to update customer",
+    });
+  }
+};
+
+export const deleteCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const mode = String(req.body?.mode || "soft").toLowerCase();
+
+    if (!["soft", "hard"].includes(mode)) {
+      return res.status(400).json({
+        success: false,
+        message: "mode must be either 'soft' or 'hard'",
+      });
+    }
+
+    const customer = await Customer.findOne({
+      _id: id,
+      userId: req.userId,
+    });
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    if (mode === "soft") {
+      if (!customer.isActive) {
+        return res.status(200).json({
+          success: true,
+          message: "Customer already inactive",
+          mode,
+        });
+      }
+
+      customer.isActive = false;
+      await customer.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Customer marked inactive",
+        mode,
+      });
+    }
+
+    const [servicesResult, invoicesResult] = await Promise.all([
+      Service.deleteMany({ userId: req.userId, customerId: customer._id }),
+      Invoice.deleteMany({ userId: req.userId, customerId: customer._id }),
+    ]);
+
+    if (customer.roModel) {
+      await ROModelInventory.findOneAndUpdate(
+        { userId: req.userId, modelName: customer.roModel },
+        { $inc: { quantity: 1 }, $setOnInsert: { isActive: true } },
+        { upsert: true, new: true },
+      );
+    }
+
+    await Customer.deleteOne({ _id: customer._id });
+
+    return res.status(200).json({
+      success: true,
+      message: "Customer permanently deleted",
+      mode,
+      deleted: {
+        services: servicesResult.deletedCount || 0,
+        invoices: invoicesResult.deletedCount || 0,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete customer",
     });
   }
 };
@@ -263,6 +598,8 @@ export const getCustomers = async (req, res) => {
       status = "active",
       paymentStatus,
       serviceStatus,
+      customerType,
+      amcStatus,
     } = req.query;
 
     const query = {
@@ -276,6 +613,10 @@ export const getCustomers = async (req, res) => {
     // payment status filter
     if (paymentStatus) {
       query.filterPaymentStatus = paymentStatus;
+    }
+
+    if (customerType) {
+      query.customerType = customerType;
     }
 
     // search by name or phone
@@ -293,6 +634,7 @@ export const getCustomers = async (req, res) => {
     const formattedCustomers = customers.map((c) => {
       let serviceStatusComputed = "NONE";
       let daysRemaining = null;
+      const amcStatusComputed = resolveAmcStatus(c.amcContract);
 
       if (c.nextServiceDate) {
         const diff =
@@ -311,6 +653,11 @@ export const getCustomers = async (req, res) => {
         phone: c.phone,
         address: c.address,
         roModel: c.roModel,
+        serviceCycleMonthsOverride: c.serviceCycleMonthsOverride,
+        customerType: c.customerType,
+        amcContract: c.amcContract
+          ? { ...c.amcContract.toObject(), status: amcStatusComputed }
+          : null,
 
         filterPaymentStatus: c.filterPaymentStatus,
         filterPrice: c.filterPrice,
@@ -326,9 +673,15 @@ export const getCustomers = async (req, res) => {
     });
 
     // optional serviceStatus filter (after computation)
-    const finalCustomers = serviceStatus
+    let finalCustomers = serviceStatus
       ? formattedCustomers.filter((c) => c.serviceStatus === serviceStatus)
       : formattedCustomers;
+
+    if (amcStatus) {
+      finalCustomers = finalCustomers.filter(
+        (c) => c.amcContract?.status === amcStatus,
+      );
+    }
 
     res.status(200).json({
       success: true,
@@ -345,7 +698,6 @@ export const getCustomers = async (req, res) => {
 };
 ///// get one customer
 // import { Customer } from "../models/customer.model.js";
-import { Service } from "../models/service.model.js";
 
 export const getCustomerById = async (req, res) => {
   try {
@@ -404,6 +756,14 @@ export const getCustomerById = async (req, res) => {
         // RO info
         roModel: customer.roModel,
         roBodyType: customer.roBodyType,
+        serviceCycleMonthsOverride: customer.serviceCycleMonthsOverride,
+        customerType: customer.customerType,
+        amcContract: customer.amcContract
+          ? {
+              ...customer.amcContract.toObject(),
+              status: resolveAmcStatus(customer.amcContract),
+            }
+          : null,
         installationDate: customer.installationDate,
 
         // Location (optional)

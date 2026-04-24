@@ -4,6 +4,7 @@ import api from "../../api/apiClient";
 import Loading from "../../components/Loading";
 import ErrorState from "../../components/ErrorState";
 import "../../styles/cusDetails.css";
+import { getEnumLabel } from "../../utils/enumLabels";
 
 const CustomerDetail = () => {
   const { id } = useParams();
@@ -15,48 +16,53 @@ const CustomerDetail = () => {
 
   const [selectedService, setSelectedService] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [serviceDeleteLoading, setServiceDeleteLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteMode, setDeleteMode] = useState("soft");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [customerRes, historyRes] = await Promise.all([
-          api.get(`/api/customers/${id}`),
-          api.get(`/api/services/customer/${id}`),
-        ]);
+  const loadData = async () => {
+    try {
+      const [customerRes, historyRes] = await Promise.all([
+        api.get(`/api/customers/${id}`),
+        api.get(`/api/services/customer/${id}`),
+      ]);
 
-        const customerData =
-          customerRes?.data?.customer ||
-          customerRes?.data ||
-          customerRes?.customer ||
-          null;
+      const customerData =
+        customerRes?.data?.customer ||
+        customerRes?.data ||
+        customerRes?.customer ||
+        null;
 
-        if (!customerData) {
-          throw new Error("Customer data not found");
-        }
-
-        setCustomer(customerData);
-
-        const history = Array.isArray(historyRes.services)
-          ? historyRes.services
-          : [];
-
-        history.sort((a, b) => new Date(b.date) - new Date(a.date));
-        setServiceHistory(history);
-      } catch (err) {
-        setError(
-          err.response?.data?.message ||
-            err.message ||
-            "Failed to load customer",
-        );
-      } finally {
-        setLoading(false);
-        setHistoryLoading(false);
+      if (!customerData) {
+        throw new Error("Customer data not found");
       }
-    };
 
+      setCustomer(customerData);
+
+      const history = Array.isArray(historyRes.services)
+        ? historyRes.services
+        : [];
+
+      history.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setServiceHistory(history);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to load customer",
+      );
+    } finally {
+      setLoading(false);
+      setHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
   }, [id]);
 
@@ -75,6 +81,27 @@ const CustomerDetail = () => {
     return String(val);
   };
 
+  const calculateAmcDaysLeft = (amcEndDate, amcStatus) => {
+    if (!amcEndDate || amcStatus === "CANCELLED") return "-";
+
+    const daysLeft = Math.ceil(
+      (new Date(amcEndDate) - new Date()) / (1000 * 60 * 60 * 24),
+    );
+
+    return daysLeft < 0 ? "Expired" : `${daysLeft} days`;
+  };
+
+  const getLastAmcPayment = () => {
+    const amount =
+      customer?.amcLastPayment?.amount ??
+      customer?.amcContract?.lastPaymentAmount ??
+      null;
+    const date =
+      customer?.amcLastPayment?.date ?? customer?.amcContract?.lastPaymentDate;
+
+    return { amount, date };
+  };
+
   const getBadgeClass = (status) => {
     const s = String(status || "").toLowerCase();
     return ["paid", "active", "completed"].includes(s)
@@ -85,6 +112,13 @@ const CustomerDetail = () => {
   const isPaid =
     customer?.payment?.status &&
     customer.payment.status.toLowerCase() === "paid";
+
+  const amcStatus = customer?.amcContract?.status || "NOT STARTED";
+  const amcDaysLeft = calculateAmcDaysLeft(
+    customer?.amcContract?.endDate,
+    amcStatus,
+  );
+  const lastAmcPayment = getLastAmcPayment();
 
   const openServiceModal = async (serviceId) => {
     try {
@@ -99,6 +133,48 @@ const CustomerDetail = () => {
   };
 
   const closeModal = () => setSelectedService(null);
+
+  const handleDeleteService = async () => {
+    if (!selectedService?.id || serviceDeleteLoading) return;
+    const confirmed = window.confirm(
+      "Delete this service from history? This cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    try {
+      setServiceDeleteLoading(true);
+      await api.delete(`/api/services/${selectedService.id}`);
+      setSelectedService(null);
+      setHistoryLoading(true);
+      await loadData();
+    } catch (err) {
+      alert(err.message || "Failed to delete service");
+    } finally {
+      setServiceDeleteLoading(false);
+    }
+  };
+
+  const closeDeleteModal = () => {
+    if (deleteLoading) return;
+    setShowDeleteModal(false);
+    setDeleteError("");
+    setDeleteMode("soft");
+  };
+
+  const handleDeleteCustomer = async () => {
+    try {
+      setDeleteLoading(true);
+      setDeleteError("");
+      await api.delete(`/api/customers/${id}`, {
+        data: { mode: deleteMode },
+      });
+      navigate("/customers");
+    } catch (err) {
+      setDeleteError(err?.message || "Failed to delete customer");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} />;
@@ -148,6 +224,13 @@ const CustomerDetail = () => {
           >
             + Add Service
           </button>
+
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="btn btn-danger"
+          >
+            Delete Customer
+          </button>
         </div>
 
         {/* PAYMENT MESSAGE */}
@@ -188,7 +271,7 @@ const CustomerDetail = () => {
             <div className="info-row">
               <span className="info-label">Status</span>
               <span className={getBadgeClass(customer.payment?.status)}>
-                {renderSafeValue(customer.payment?.status)}
+                {getEnumLabel("paymentStatus", customer.payment?.status)}
               </span>
             </div>
 
@@ -229,6 +312,46 @@ const CustomerDetail = () => {
           </div>
         </div>
 
+        {/* AMC DETAILS */}
+        <div className="detail-card amc-card">
+          <div className="section-title">🛡️ AMC Details</div>
+
+          <div className="info-row">
+            <span className="info-label">AMC Status</span>
+            <span className={getBadgeClass(amcStatus)}>
+              {getEnumLabel("amcStatus", amcStatus)}
+            </span>
+          </div>
+
+          <div className="info-row">
+            <span className="info-label">Start Date / End Date</span>
+            <span className="info-value">
+              {formatDate(customer?.amcContract?.startDate)} /{" "}
+              {formatDate(customer?.amcContract?.endDate)}
+            </span>
+          </div>
+
+          <div className="info-row">
+            <span className="info-label">Days Left</span>
+            <span className="info-value">{amcDaysLeft}</span>
+          </div>
+
+          <div className="info-row">
+            <span className="info-label">Last AMC payment amount/date</span>
+            <span className="info-value">
+              {lastAmcPayment.amount ? `₹${lastAmcPayment.amount}` : "-"} /{" "}
+              {formatDate(lastAmcPayment.date)}
+            </span>
+          </div>
+
+          <div className="amc-action-panel">
+            <button className="btn btn-primary">Start AMC</button>
+            <button className="btn btn-outline">Renew AMC</button>
+            <button className="btn btn-outline">Stop AMC</button>
+            <button className="btn btn-outline">Record AMC Payment</button>
+          </div>
+        </div>
+
         {/* SERVICE HISTORY */}
         <div className="detail-card">
           <div className="section-title">Service History</div>
@@ -246,7 +369,7 @@ const CustomerDetail = () => {
                   onClick={() => openServiceModal(service.id)}
                 >
                   <div>
-                    <div className="history-type">{service.type}</div>
+                    <div className="history-type">{getEnumLabel("serviceType", service.type)}</div>
                     <div className="history-date">
                       {formatDate(service.date)}
                     </div>
@@ -269,9 +392,18 @@ const CustomerDetail = () => {
               <>
                 <div className="modal-header">
                   <h3>Service Details</h3>
-                  <button className="close-btn" onClick={closeModal}>
-                    ×
-                  </button>
+                  <div className="modal-header-actions">
+                    <button
+                      className="btn btn-danger"
+                      onClick={handleDeleteService}
+                      disabled={serviceDeleteLoading}
+                    >
+                      {serviceDeleteLoading ? "Deleting..." : "Delete"}
+                    </button>
+                    <button className="close-btn" onClick={closeModal}>
+                      ×
+                    </button>
+                  </div>
                 </div>
 
                 <div className="modal-body">
@@ -280,7 +412,7 @@ const CustomerDetail = () => {
                     {formatDate(selectedService.serviceDate)}
                   </p>
                   <p>
-                    <strong>Type:</strong> {selectedService.serviceType}
+                    <strong>Type:</strong> {getEnumLabel("serviceType", selectedService.serviceType)}
                   </p>
                   <p>
                     <strong>Service Charge:</strong> ₹
@@ -306,6 +438,67 @@ const CustomerDetail = () => {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={closeDeleteModal}>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirm Customer Delete</h3>
+              <button className="close-btn" onClick={closeDeleteModal}>
+                ×
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <p>
+                Choose delete mode for <strong>{customer.name}</strong>.
+              </p>
+
+              <label className="delete-mode-option">
+                <input
+                  type="radio"
+                  name="delete-mode"
+                  value="soft"
+                  checked={deleteMode === "soft"}
+                  onChange={(e) => setDeleteMode(e.target.value)}
+                />
+                <span>
+                  <strong>Soft delete:</strong> mark customer as inactive.
+                </span>
+              </label>
+
+              <label className="delete-mode-option">
+                <input
+                  type="radio"
+                  name="delete-mode"
+                  value="hard"
+                  checked={deleteMode === "hard"}
+                  onChange={(e) => setDeleteMode(e.target.value)}
+                />
+                <span>
+                  <strong>Hard delete:</strong> permanently remove customer,
+                  services, and invoices.
+                </span>
+              </label>
+
+              {deleteError && <div className="delete-error">{deleteError}</div>}
+
+              <div className="delete-actions">
+                <button className="btn btn-outline" onClick={closeDeleteModal}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={handleDeleteCustomer}
+                  disabled={deleteLoading}
+                >
+                  {deleteLoading ? "Deleting..." : "Confirm Delete"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
