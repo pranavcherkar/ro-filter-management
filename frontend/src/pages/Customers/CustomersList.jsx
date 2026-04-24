@@ -4,6 +4,7 @@ import api from "../../api/apiClient";
 import Loading from "../../components/Loading";
 import ErrorState from "../../components/ErrorState";
 import "../../styles/customers.css";
+import { getEnumLabel } from "../../utils/enumLabels";
 
 const CustomersList = () => {
   const navigate = useNavigate();
@@ -103,7 +104,7 @@ const CustomersList = () => {
                         color: paymentStyle.text,
                       }}
                     >
-                      {customer.filterPaymentStatus || "N/A"}
+                      {customer.filterPaymentStatus ? getEnumLabel("paymentStatus", customer.filterPaymentStatus) : "N/A"}
                     </span>
                   </div>
 
@@ -116,7 +117,7 @@ const CustomersList = () => {
                         color: serviceStyle.text,
                       }}
                     >
-                      {customer.serviceStatus || "N/A"}
+                      {customer.serviceStatus ? getEnumLabel("paymentStatus", customer.serviceStatus) : "N/A"}
                     </span>
                   </div>
                 </div>
