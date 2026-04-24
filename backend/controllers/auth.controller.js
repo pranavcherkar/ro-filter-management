@@ -54,6 +54,7 @@ export const login = async (req, res) => {
         lastname: user.lastname,
         email: user.email,
         businessName: user.businessName,
+        defaultServiceCycleMonths: user.defaultServiceCycleMonths,
       },
     });
   } catch (error) {
@@ -66,7 +67,15 @@ export const login = async (req, res) => {
 
 export const register = async (req, res) => {
   try {
-    const { firstname, lastname, email, password, phone, businessName } =
+    const {
+      firstname,
+      lastname,
+      email,
+      password,
+      phone,
+      businessName,
+      defaultServiceCycleMonths,
+    } =
       req.body;
 
     if (!firstname || !lastname || !email || !password) {
@@ -85,6 +94,21 @@ export const register = async (req, res) => {
       });
     }
 
+    const parsedDefaultCycleMonths =
+      defaultServiceCycleMonths === undefined
+        ? undefined
+        : Number(defaultServiceCycleMonths);
+
+    if (
+      parsedDefaultCycleMonths !== undefined &&
+      (!Number.isFinite(parsedDefaultCycleMonths) || parsedDefaultCycleMonths <= 0)
+    ) {
+      return res.status(400).json({
+        message: "defaultServiceCycleMonths must be a positive number",
+        success: false,
+      });
+    }
+
     // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -94,6 +118,7 @@ export const register = async (req, res) => {
       email,
       phone,
       businessName,
+      defaultServiceCycleMonths: parsedDefaultCycleMonths,
       password: hashedPassword,
     });
 
@@ -105,6 +130,7 @@ export const register = async (req, res) => {
         firstname: user.firstname,
         lastname: user.lastname,
         email: user.email,
+        defaultServiceCycleMonths: user.defaultServiceCycleMonths,
       },
     });
   } catch (error) {
@@ -132,6 +158,51 @@ export const logout = async (req, res) => {
     res.status(500).json({
       message: "Logout failed",
       success: false,
+    });
+  }
+};
+
+export const updateProfile = async (req, res) => {
+  try {
+    const allowedUpdates = [
+      "firstname",
+      "lastname",
+      "phone",
+      "businessName",
+      "defaultServiceCycleMonths",
+    ];
+
+    const updates = {};
+    for (const key of allowedUpdates) {
+      if (req.body[key] !== undefined) {
+        updates[key] = req.body[key];
+      }
+    }
+
+    if (updates.defaultServiceCycleMonths !== undefined) {
+      const parsedDefaultCycleMonths = Number(updates.defaultServiceCycleMonths);
+      if (!Number.isFinite(parsedDefaultCycleMonths) || parsedDefaultCycleMonths <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "defaultServiceCycleMonths must be a positive number",
+        });
+      }
+      updates.defaultServiceCycleMonths = parsedDefaultCycleMonths;
+    }
+
+    const user = await User.findByIdAndUpdate(req.userId, { $set: updates }, {
+      new: true,
+    }).select("-password");
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update profile",
     });
   }
 };

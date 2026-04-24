@@ -27,6 +27,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    defaultServiceCycleMonths: {
+      type: Number,
+      default: 6,
+      min: 1,
+    },
   },
   { timestamps: true }
 );

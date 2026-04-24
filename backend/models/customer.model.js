@@ -92,6 +92,11 @@ const customerSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    serviceCycleMonthsOverride: {
+      type: Number,
+      default: null,
+      min: 1,
+    },
 
     filterPrice: {
       type: Number,

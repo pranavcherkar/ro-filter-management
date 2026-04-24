@@ -4,6 +4,25 @@ import { Invoice } from "../models/invoice.model.js";
 import { ROModelInventory } from "../models/roModelInventory.model.js";
 import { Service } from "../models/service.model.js";
 
+const FALLBACK_SERVICE_CYCLE_MONTHS = 6;
+
+const resolveServiceCycleMonths = ({
+  customerCycleMonthsOverride,
+  ownerDefaultCycleMonths,
+}) => {
+  const parsedOverride = Number(customerCycleMonthsOverride);
+  if (Number.isFinite(parsedOverride) && parsedOverride > 0) {
+    return parsedOverride;
+  }
+
+  const parsedOwnerDefault = Number(ownerDefaultCycleMonths);
+  if (Number.isFinite(parsedOwnerDefault) && parsedOwnerDefault > 0) {
+    return parsedOwnerDefault;
+  }
+
+  return FALLBACK_SERVICE_CYCLE_MONTHS;
+};
+
 const resolveAmcStatus = (amcContract) => {
   if (!amcContract) return null;
 
@@ -69,6 +88,7 @@ export const createCustomer = async (req, res) => {
       initialPaidAmount = 0, // ✅ match frontend
       lastServiceDate,
       filters,
+      serviceCycleMonthsOverride,
       location,
     } = req.body;
 
@@ -96,6 +116,26 @@ export const createCustomer = async (req, res) => {
 
     const installDateObj = new Date(installationDate);
     const serviceDateObj = lastServiceDate ? new Date(lastServiceDate) : null;
+    const normalizedServiceCycleOverride =
+      serviceCycleMonthsOverride === undefined || serviceCycleMonthsOverride === null
+        ? null
+        : Number(serviceCycleMonthsOverride);
+
+    if (
+      normalizedServiceCycleOverride !== null &&
+      (!Number.isFinite(normalizedServiceCycleOverride) ||
+        normalizedServiceCycleOverride <= 0)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "serviceCycleMonthsOverride must be a positive number",
+      });
+    }
+
+    const resolvedServiceCycleMonths = resolveServiceCycleMonths({
+      customerCycleMonthsOverride: normalizedServiceCycleOverride,
+      ownerDefaultCycleMonths: req.user?.defaultServiceCycleMonths,
+    });
 
     // 2️⃣ Check RO model stock
     const roStock = await ROModelInventory.findOne({
@@ -124,13 +164,13 @@ export const createCustomer = async (req, res) => {
     let nextServiceDate = null;
 
     if (serviceDateObj) {
-      nextServiceDate = addMonths(serviceDateObj, 6);
+      nextServiceDate = addMonths(serviceDateObj, resolvedServiceCycleMonths);
     } else {
       const now = new Date();
       const diffDays = (now - installDateObj) / (1000 * 60 * 60 * 24);
 
       if (diffDays <= 30) {
-        nextServiceDate = addMonths(installDateObj, 6);
+        nextServiceDate = addMonths(installDateObj, resolvedServiceCycleMonths);
       }
     }
 
@@ -154,6 +194,7 @@ export const createCustomer = async (req, res) => {
       customerType,
       amcContract: normalizeAmcContract(customerType, amcContract),
       installationDate: installDateObj,
+      serviceCycleMonthsOverride: normalizedServiceCycleOverride,
       filterPrice: price,
       filterPaidAmount: paid,
       filterPaymentStatus: paymentStatus,
@@ -279,12 +320,29 @@ export const updateCustomer = async (req, res) => {
       "customerType",
       "location",
       "isActive",
+      "serviceCycleMonthsOverride",
     ];
 
     const updates = {};
 
     for (const key of allowedUpdates) {
       if (req.body[key] !== undefined) {
+        if (key === "serviceCycleMonthsOverride") {
+          if (req.body[key] === null) {
+            updates[key] = null;
+            continue;
+          }
+
+          const parsed = Number(req.body[key]);
+          if (!Number.isFinite(parsed) || parsed <= 0) {
+            return res.status(400).json({
+              success: false,
+              message: "serviceCycleMonthsOverride must be a positive number",
+            });
+          }
+          updates[key] = parsed;
+          continue;
+        }
         updates[key] = req.body[key];
       }
     }
@@ -398,6 +456,7 @@ export const getCustomers = async (req, res) => {
         phone: c.phone,
         address: c.address,
         roModel: c.roModel,
+        serviceCycleMonthsOverride: c.serviceCycleMonthsOverride,
         customerType: c.customerType,
         amcContract: c.amcContract
           ? { ...c.amcContract.toObject(), status: amcStatusComputed }
@@ -500,6 +559,7 @@ export const getCustomerById = async (req, res) => {
         // RO info
         roModel: customer.roModel,
         roBodyType: customer.roBodyType,
+        serviceCycleMonthsOverride: customer.serviceCycleMonthsOverride,
         customerType: customer.customerType,
         amcContract: customer.amcContract
           ? {
