@@ -45,6 +45,14 @@ const amcContractSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    lastPaymentDate: {
+      type: Date,
+      default: null,
+    },
+    lastPaymentAmount: {
+      type: Number,
+      default: 0,
+    },
   },
   { _id: false }
 );

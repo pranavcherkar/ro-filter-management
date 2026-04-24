@@ -2,6 +2,7 @@ import express from "express";
 import {
   createCustomer,
   updateCustomerPayment,
+  recordAmcPayment,
   updateCustomer,
   getCustomers,
   getCustomerById,
@@ -16,6 +17,7 @@ router.get("/:id", isAuthenticated, getCustomerById);
 /* GENERIC UPDATE (address, phone, roModel, location, etc.) */
 router.patch("/:id", isAuthenticated, updateCustomer);
 router.patch("/:id/payment", isAuthenticated, updateCustomerPayment);
+router.post("/:id/amc-payment", isAuthenticated, recordAmcPayment);
 
 router.get("/", isAuthenticated, getCustomers);
 export default router;

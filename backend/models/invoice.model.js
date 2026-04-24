@@ -30,7 +30,7 @@ const invoiceSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["FILTER_SALE", "SERVICE"],
+      enum: ["FILTER_SALE", "SERVICE", "AMC_PAYMENT"],
       required: true,
     },
 
