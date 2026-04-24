@@ -21,6 +21,7 @@ const InvoicesList = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState("");
   const limit = 20;
 
   const loadInvoices = async (page = 1) => {
@@ -170,6 +171,31 @@ const InvoicesList = () => {
     doc.save(`invoice_${inv.customer?.name}.pdf`);
   };
 
+  const handleDeleteInvoice = async (invoice) => {
+    const confirmed = window.confirm(
+      `Delete invoice for ${invoice.customer?.name || "this customer"} on ${formatDate(invoice.invoiceDate)}? This cannot be undone.`,
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingInvoiceId(invoice.id);
+      setError("");
+      const response = await api.delete(`/api/invoices/${invoice.id}`);
+
+      await loadInvoices(currentPage);
+      if (response?.message) {
+        window.alert(response.message);
+      }
+    } catch (err) {
+      const message = err?.message || "Failed to delete invoice";
+      setError(message);
+      window.alert(message);
+    } finally {
+      setDeletingInvoiceId("");
+    }
+  };
+
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} />;
 
@@ -255,12 +281,22 @@ const InvoicesList = () => {
                 </div>
               </div>
 
-              <button
-                className="pdf-btn"
-                onClick={() => generateInvoicePDF(inv)}
-              >
-                Download Invoice PDF
-              </button>
+              <div className="invoice-actions">
+                <button
+                  className="pdf-btn"
+                  onClick={() => generateInvoicePDF(inv)}
+                >
+                  Download Invoice PDF
+                </button>
+
+                <button
+                  className="delete-btn"
+                  onClick={() => handleDeleteInvoice(inv)}
+                  disabled={deletingInvoiceId === inv.id}
+                >
+                  {deletingInvoiceId === inv.id ? "Deleting..." : "Delete Invoice"}
+                </button>
+              </div>
             </div>
           ))}
 
