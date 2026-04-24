@@ -4,6 +4,7 @@ import api from "../../api/apiClient";
 import Loading from "../../components/Loading";
 import ErrorState from "../../components/ErrorState";
 import "../../styles/cusDetails.css";
+import { getEnumLabel } from "../../utils/enumLabels";
 
 const CustomerDetail = () => {
   const { id } = useParams();
@@ -188,7 +189,7 @@ const CustomerDetail = () => {
             <div className="info-row">
               <span className="info-label">Status</span>
               <span className={getBadgeClass(customer.payment?.status)}>
-                {renderSafeValue(customer.payment?.status)}
+                {getEnumLabel("paymentStatus", customer.payment?.status)}
               </span>
             </div>
 
@@ -246,7 +247,7 @@ const CustomerDetail = () => {
                   onClick={() => openServiceModal(service.id)}
                 >
                   <div>
-                    <div className="history-type">{service.type}</div>
+                    <div className="history-type">{getEnumLabel("serviceType", service.type)}</div>
                     <div className="history-date">
                       {formatDate(service.date)}
                     </div>
@@ -280,7 +281,7 @@ const CustomerDetail = () => {
                     {formatDate(selectedService.serviceDate)}
                   </p>
                   <p>
-                    <strong>Type:</strong> {selectedService.serviceType}
+                    <strong>Type:</strong> {getEnumLabel("serviceType", selectedService.serviceType)}
                   </p>
                   <p>
                     <strong>Service Charge:</strong> ₹

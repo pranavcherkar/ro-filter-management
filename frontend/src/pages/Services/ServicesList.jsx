@@ -3,6 +3,7 @@ import api from "../../api/apiClient";
 import Loading from "../../components/Loading";
 import ErrorState from "../../components/ErrorState";
 import "../../styles/servList.css";
+import { getEnumLabel } from "../../utils/enumLabels";
 
 const ServicesList = () => {
   const [services, setServices] = useState([]);
@@ -147,7 +148,7 @@ const ServicesList = () => {
               <div>
                 <strong>Service Type</strong>
                 <span className="service-type-badge">
-                  {service.serviceType}
+                  {getEnumLabel("serviceType", service.serviceType)}
                 </span>
               </div>
 
@@ -226,7 +227,7 @@ const ServicesList = () => {
 
                   <div className="modal-section">
                     <strong>Service Type</strong>
-                    <p>{selectedService.serviceType}</p>
+                    <p>{getEnumLabel("serviceType", selectedService.serviceType)}</p>
                   </div>
 
                   <div className="modal-section">

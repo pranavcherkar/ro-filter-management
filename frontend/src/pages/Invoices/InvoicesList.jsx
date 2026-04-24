@@ -5,6 +5,7 @@ import ErrorState from "../../components/ErrorState";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import "../../styles/invoicelist.css";
+import { getEnumLabel } from "../../utils/enumLabels";
 
 const InvoicesList = () => {
   const [invoices, setInvoices] = useState([]);
@@ -208,7 +209,7 @@ const InvoicesList = () => {
                     {formatDate(inv.invoiceDate)}
                   </div>
                 </div>
-                <span className="status-badge">{inv.paymentStatus}</span>
+                <span className="status-badge">{getEnumLabel("paymentStatus", inv.paymentStatus)}</span>
               </div>
 
               <div className="invoice-grid">
