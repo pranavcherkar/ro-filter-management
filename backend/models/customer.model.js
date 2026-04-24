@@ -18,6 +18,37 @@ const filterSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const amcContractSchema = new mongoose.Schema(
+  {
+    startDate: {
+      type: Date,
+      default: null,
+    },
+    endDate: {
+      type: Date,
+      default: null,
+    },
+    status: {
+      type: String,
+      enum: ["ACTIVE", "EXPIRED", "CANCELLED"],
+      default: null,
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
+    cancellationReason: {
+      type: String,
+      default: "",
+    },
+    notes: {
+      type: String,
+      default: "",
+    },
+  },
+  { _id: false }
+);
+
 const customerSchema = new mongoose.Schema(
   {
     userId: {
@@ -46,6 +77,15 @@ const customerSchema = new mongoose.Schema(
     roBodyType: {
       type: String,
       default: "",
+    },
+    customerType: {
+      type: String,
+      enum: ["REGULAR", "AMC"],
+      default: "REGULAR",
+    },
+    amcContract: {
+      type: amcContractSchema,
+      default: null,
     },
 
     installationDate: {
