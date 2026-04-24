@@ -387,6 +387,7 @@
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .delete-error {
@@ -411,6 +412,25 @@
 
 /* ================= MOBILE ================= */
 
+@media (max-width: 1024px) {
+  .detail-wrapper {
+    padding: 24px 16px;
+  }
+
+  .detail-header {
+    padding: 30px;
+  }
+
+  .action-panel .btn {
+    flex: 1 1 calc(50% - 6px);
+    text-align: center;
+  }
+
+  .financial-summary-row {
+    gap: 24px;
+  }
+}
+
 @media (max-width: 767px) {
   .detail-wrapper {
     padding: 15px;
@@ -428,6 +448,47 @@
 
   .info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .action-panel {
+    gap: 10px;
+  }
+
+  .action-panel .btn {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .modal-container {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    border-radius: 14px;
+    padding: 18px;
+    margin: 12px;
+  }
+
+  .modal-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .modal-header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .modal-header-actions .btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .delete-actions {
+    justify-content: stretch;
+  }
+
+  .delete-actions .btn {
+    width: 100%;
   }
 
   .financial-summary-row {
