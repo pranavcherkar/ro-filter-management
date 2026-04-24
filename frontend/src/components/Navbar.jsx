@@ -5,12 +5,15 @@ import {
   HiWrenchScrewdriver,
   HiDocumentText,
   HiArchiveBox,
+  HiArrowRightOnRectangle,
 } from "react-icons/hi2";
+import { useAuth } from "../auth/AuthContext";
 import "../styles/Navbar.css";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuth();
 
   const navItems = [
     { label: "Dashboard", path: "/", icon: <HiHome /> },
@@ -19,6 +22,11 @@ const Navbar = () => {
     { label: "Invoices", path: "/invoices", icon: <HiDocumentText /> },
     { label: "Inventory", path: "/inventory", icon: <HiArchiveBox /> },
   ];
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
 
   return (
     <nav className="navbar">
@@ -34,6 +42,12 @@ const Navbar = () => {
           <span className="nav-label">{item.label}</span>
         </button>
       ))}
+      <button className="nav-item" onClick={handleLogout}>
+        <span className="nav-icon">
+          <HiArrowRightOnRectangle />
+        </span>
+        <span className="nav-label">Logout</span>
+      </button>
     </nav>
   );
 };
