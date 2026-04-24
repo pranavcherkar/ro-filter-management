@@ -16,6 +16,10 @@ const CustomerDetail = () => {
 
   const [selectedService, setSelectedService] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteMode, setDeleteMode] = useState("soft");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -129,6 +133,28 @@ const CustomerDetail = () => {
 
   const closeModal = () => setSelectedService(null);
 
+  const closeDeleteModal = () => {
+    if (deleteLoading) return;
+    setShowDeleteModal(false);
+    setDeleteError("");
+    setDeleteMode("soft");
+  };
+
+  const handleDeleteCustomer = async () => {
+    try {
+      setDeleteLoading(true);
+      setDeleteError("");
+      await api.delete(`/api/customers/${id}`, {
+        data: { mode: deleteMode },
+      });
+      navigate("/customers");
+    } catch (err) {
+      setDeleteError(err?.message || "Failed to delete customer");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} />;
   if (!customer) return <div>Customer not found</div>;
@@ -176,6 +202,13 @@ const CustomerDetail = () => {
             className="btn btn-outline"
           >
             + Add Service
+          </button>
+
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="btn btn-danger"
+          >
+            Delete Customer
           </button>
         </div>
 
@@ -375,6 +408,67 @@ const CustomerDetail = () => {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="modal-overlay" onClick={closeDeleteModal}>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Confirm Customer Delete</h3>
+              <button className="close-btn" onClick={closeDeleteModal}>
+                ×
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <p>
+                Choose delete mode for <strong>{customer.name}</strong>.
+              </p>
+
+              <label className="delete-mode-option">
+                <input
+                  type="radio"
+                  name="delete-mode"
+                  value="soft"
+                  checked={deleteMode === "soft"}
+                  onChange={(e) => setDeleteMode(e.target.value)}
+                />
+                <span>
+                  <strong>Soft delete:</strong> mark customer as inactive.
+                </span>
+              </label>
+
+              <label className="delete-mode-option">
+                <input
+                  type="radio"
+                  name="delete-mode"
+                  value="hard"
+                  checked={deleteMode === "hard"}
+                  onChange={(e) => setDeleteMode(e.target.value)}
+                />
+                <span>
+                  <strong>Hard delete:</strong> permanently remove customer,
+                  services, and invoices.
+                </span>
+              </label>
+
+              {deleteError && <div className="delete-error">{deleteError}</div>}
+
+              <div className="delete-actions">
+                <button className="btn btn-outline" onClick={closeDeleteModal}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={handleDeleteCustomer}
+                  disabled={deleteLoading}
+                >
+                  {deleteLoading ? "Deleting..." : "Confirm Delete"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
