@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Customer } from "../models/customer.model.js";
 import { addMonths } from "../utils/date.utils.js";
 import { Invoice } from "../models/invoice.model.js";
@@ -137,21 +138,23 @@ export const createCustomer = async (req, res) => {
       ownerDefaultCycleMonths: req.user?.defaultServiceCycleMonths,
     });
 
-    // 2️⃣ Check RO model stock
-    const roStock = await ROModelInventory.findOne({
-      userId,
-      modelName: roModel,
-    });
-
-    if (!roStock || roStock.quantity <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Selected RO model is out of stock",
+    // 2️⃣ Check RO model stock (skip for SERVICE_ONLY — they own their machine)
+    if (customerType !== "SERVICE_ONLY") {
+      const roStock = await ROModelInventory.findOne({
+        userId,
+        modelName: roModel,
       });
-    }
 
-    roStock.quantity -= 1;
-    await roStock.save();
+      if (!roStock || roStock.quantity <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Selected RO model is out of stock",
+        });
+      }
+
+      roStock.quantity -= 1;
+      await roStock.save();
+    }
 
     // 3️⃣ Initialize filters
     const initializedFilters = (filters || []).map((f) => ({
@@ -511,7 +514,15 @@ export const updateCustomer = async (req, res) => {
 
 export const deleteCustomer = async (req, res) => {
   try {
-    const { id } = req.params;
+   const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid customer ID",
+      });
+    }
+
     const mode = String(req.body?.mode || "soft").toLowerCase();
 
     if (!["soft", "hard"].includes(mode)) {
@@ -542,8 +553,9 @@ export const deleteCustomer = async (req, res) => {
         });
       }
 
-      customer.isActive = false;
-      await customer.save();
+      // Use findByIdAndUpdate to bypass full document validation
+      // (avoids crashes on old customers with amcContract.status = null)
+      await Customer.findByIdAndUpdate(id, { $set: { isActive: false } });
 
       return res.status(200).json({
         success: true,
@@ -552,12 +564,13 @@ export const deleteCustomer = async (req, res) => {
       });
     }
 
+    //
     const [servicesResult, invoicesResult] = await Promise.all([
       Service.deleteMany({ userId: req.userId, customerId: customer._id }),
       Invoice.deleteMany({ userId: req.userId, customerId: customer._id }),
     ]);
 
-    if (customer.roModel) {
+    if (customer.roModel && customer.customerType !== "SERVICE_ONLY") {
       await ROModelInventory.findOneAndUpdate(
         { userId: req.userId, modelName: customer.roModel },
         { $inc: { quantity: 1 }, $setOnInsert: { isActive: true } },

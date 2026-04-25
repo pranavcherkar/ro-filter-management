@@ -277,34 +277,37 @@ const CustomerForm = () => {
                 />
               </div>
             </div>
-
-            <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">Filter Price</label>
-                <input
-                  type="number"
-                  name="filterPrice"
-                  value={form.filterPrice}
-                  disabled={isEdit}
-                  onChange={handleChange}
-                  className="form-input"
-                />
-              </div>
-
-              {!isEdit && (
+{/*  //////////////////////////////////////// */}
+            {/* Service Only customers don't buy a machine from you, so no filter price */}
+            {form.customerType !== "SERVICE_ONLY" && (
+              <div className="form-grid">
                 <div className="form-group">
-                  <label className="form-label">Initial Paid Amount</label>
+                  <label className="form-label">Filter Price</label>
                   <input
                     type="number"
-                    name="initialPaidAmount"
-                    value={form.initialPaidAmount}
+                    name="filterPrice"
+                    value={form.filterPrice}
+                    disabled={isEdit}
                     onChange={handleChange}
                     className="form-input"
                   />
                 </div>
-              )}
-            </div>
 
+                {!isEdit && (
+                  <div className="form-group">
+                    <label className="form-label">Initial Paid Amount</label>
+                    <input
+                      type="number"
+                      name="initialPaidAmount"
+                      value={form.initialPaidAmount}
+                      onChange={handleChange}
+                      className="form-input"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+{/* ./////////////////. */}
             <div className="form-group">
               <label className="form-label">Location / Map Link</label>
               <input
@@ -326,8 +329,9 @@ const CustomerForm = () => {
                   onChange={handleChange}
                   className="form-input"
                 >
-                  <option value="REGULAR">Regular</option>
-                  <option value="AMC">AMC (Annual Maintenance Contract)</option>
+                   <option value="REGULAR">Regular</option>
+                <option value="AMC">AMC (Annual Maintenance Contract)</option>
+                <option value="SERVICE_ONLY">Service Only (customer owns machine)</option>
                 </select>
               </div>
             )}
