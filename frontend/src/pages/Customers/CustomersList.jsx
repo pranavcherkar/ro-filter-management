@@ -213,7 +213,7 @@ const CustomersList = () => {
                       }}
                     >
                       {customer.serviceStatus
-                        ? getEnumLabel("paymentStatus", customer.serviceStatus)
+                        ? getEnumLabel("serviceStatus", customer.serviceStatus)
                         : "N/A"}
                     </span>
                   </div>

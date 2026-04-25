@@ -18,6 +18,21 @@ const ENUM_LABELS = {
     ACTIVE: "Active",
     COMPLETED: "Completed",
   },
+  serviceStatus: {
+    OK: "On Track",
+    UPCOMING: "Due Soon",
+    OVERDUE: "Overdue",
+    NONE: "Not Set",
+  },
+  amcStatus: {
+    ACTIVE: "Active",
+    EXPIRED: "Expired",
+    CANCELLED: "Cancelled",
+  },
+  customerType: {
+    REGULAR: "Regular",
+    AMC: "AMC",
+  },
 };
 
 const toReadableFallback = (value) =>

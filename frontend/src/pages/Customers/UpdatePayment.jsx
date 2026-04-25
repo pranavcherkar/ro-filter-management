@@ -28,11 +28,7 @@ const UpdatePayment = () => {
 
         setCustomer(customerData);
       } catch (err) {
-        setError(
-          err.response?.data?.message ||
-            err.message ||
-            "Failed to load customer",
-        );
+         setError(err?.message || "Failed to load customer");
       } finally {
         setLoading(false);
       }
@@ -66,11 +62,7 @@ const UpdatePayment = () => {
 
       navigate(`/customers/${id}`);
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Failed to update payment",
-      );
+       setError(err?.message || "Failed to update payment");
     } finally {
       setSubmitting(false);
     }
