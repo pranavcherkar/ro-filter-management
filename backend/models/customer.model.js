@@ -87,10 +87,10 @@ const customerSchema = new mongoose.Schema(
       default: "",
     },
     customerType: {
-      type: String,
-      enum: ["REGULAR", "AMC"],
-      default: "REGULAR",
-    },
+  type: String,
+  enum: ["REGULAR", "AMC", "SERVICE_ONLY"],
+  default: "REGULAR",
+},
     amcContract: {
       type: amcContractSchema,
       default: null,

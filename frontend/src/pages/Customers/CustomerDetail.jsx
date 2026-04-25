@@ -22,6 +22,19 @@ const CustomerDetail = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // AMC modal state
+  const [showAmcModal, setShowAmcModal] = useState(false);
+  const [amcModalMode, setAmcModalMode] = useState("record"); // "record" | "stop"
+  const [amcLoading, setAmcLoading] = useState(false);
+  const [amcError, setAmcError] = useState("");
+  const [amcForm, setAmcForm] = useState({
+    amount: "",
+    startDate: "",
+    endDate: "",
+    paymentDate: new Date().toISOString().slice(0, 10),
+    notes: "",
+  });
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -51,11 +64,7 @@ const CustomerDetail = () => {
       history.sort((a, b) => new Date(b.date) - new Date(a.date));
       setServiceHistory(history);
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Failed to load customer",
-      );
+      setError(err?.message || "Failed to load customer");
     } finally {
       setLoading(false);
       setHistoryLoading(false);
@@ -148,7 +157,7 @@ const CustomerDetail = () => {
       setHistoryLoading(true);
       await loadData();
     } catch (err) {
-      alert(err.message || "Failed to delete service");
+      alert(err?.message || "Failed to delete service");
     } finally {
       setServiceDeleteLoading(false);
     }
@@ -173,6 +182,78 @@ const CustomerDetail = () => {
       setDeleteError(err?.message || "Failed to delete customer");
     } finally {
       setDeleteLoading(false);
+    }
+  };
+
+  // ── AMC handlers ──────────────────────────────────────────────
+
+  const openAmcModal = (mode) => {
+    setAmcModalMode(mode);
+    setAmcError("");
+    setAmcForm({
+      amount: "",
+      startDate: customer?.amcContract?.startDate?.slice(0, 10) || "",
+      endDate: customer?.amcContract?.endDate?.slice(0, 10) || "",
+      paymentDate: new Date().toISOString().slice(0, 10),
+      notes: customer?.amcContract?.notes || "",
+    });
+    setShowAmcModal(true);
+  };
+
+  const closeAmcModal = () => {
+    if (amcLoading) return;
+    setShowAmcModal(false);
+    setAmcError("");
+  };
+
+  const handleAmcPayment = async () => {
+    setAmcError("");
+
+    if (!amcForm.amount || Number(amcForm.amount) <= 0) {
+      setAmcError("Please enter a valid amount.");
+      return;
+    }
+    if (!amcForm.startDate || !amcForm.endDate) {
+      setAmcError("Start date and end date are required.");
+      return;
+    }
+
+    try {
+      setAmcLoading(true);
+      await api.post(`/api/customers/${id}/amc-payment`, {
+        amount: Number(amcForm.amount),
+        startDate: amcForm.startDate,
+        endDate: amcForm.endDate,
+        paymentDate: amcForm.paymentDate,
+        notes: amcForm.notes,
+      });
+      setShowAmcModal(false);
+      await loadData();
+    } catch (err) {
+      setAmcError(err?.message || "Failed to record AMC payment.");
+    } finally {
+      setAmcLoading(false);
+    }
+  };
+
+  const handleStopAmc = async () => {
+    const confirmed = window.confirm(
+      "Stop AMC for this customer? Their type will be set back to Regular.",
+    );
+    if (!confirmed) return;
+
+    try {
+      setAmcLoading(true);
+      await api.patch(`/api/customers/${id}`, {
+        customerType: "REGULAR",
+        amcContract: null,
+      });
+      setShowAmcModal(false);
+      await loadData();
+    } catch (err) {
+      setAmcError(err?.message || "Failed to stop AMC.");
+    } finally {
+      setAmcLoading(false);
     }
   };
 
@@ -253,6 +334,13 @@ const CustomerDetail = () => {
               <span className="info-label">RO Model</span>
               <span className="info-value">
                 {renderSafeValue(customer.roModel)}
+              </span>
+            </div>
+
+            <div className="info-row">
+              <span className="info-label">Body Type</span>
+              <span className="info-value">
+                {renderSafeValue(customer.roBodyType)}
               </span>
             </div>
 
@@ -345,10 +433,27 @@ const CustomerDetail = () => {
           </div>
 
           <div className="amc-action-panel">
-            <button className="btn btn-primary">Start AMC</button>
-            <button className="btn btn-outline">Renew AMC</button>
-            <button className="btn btn-outline">Stop AMC</button>
-            <button className="btn btn-outline">Record AMC Payment</button>
+            <button
+              className="btn btn-primary"
+              onClick={() => openAmcModal("record")}
+            >
+              {amcStatus === "NOT STARTED" ? "Start AMC" : "Renew AMC"}
+            </button>
+
+            <button
+              className="btn btn-outline"
+              onClick={() => openAmcModal("record")}
+            >
+              Record AMC Payment
+            </button>
+
+            <button
+              className="btn btn-outline"
+              onClick={handleStopAmc}
+              disabled={amcStatus === "NOT STARTED"}
+            >
+              Stop AMC
+            </button>
           </div>
         </div>
 
@@ -382,7 +487,7 @@ const CustomerDetail = () => {
         </div>
       </div>
 
-      {/* MODAL */}
+      {/* SERVICE DETAIL MODAL */}
       {selectedService && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
@@ -442,6 +547,7 @@ const CustomerDetail = () => {
         </div>
       )}
 
+      {/* DELETE CUSTOMER MODAL */}
       {showDeleteModal && (
         <div className="modal-overlay" onClick={closeDeleteModal}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
@@ -496,6 +602,116 @@ const CustomerDetail = () => {
                   disabled={deleteLoading}
                 >
                   {deleteLoading ? "Deleting..." : "Confirm Delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AMC MODAL */}
+      {showAmcModal && (
+        <div className="modal-overlay" onClick={closeAmcModal}>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                {amcStatus === "NOT STARTED" ? "Start AMC" : "Renew / Record AMC Payment"}
+              </h3>
+              <button className="close-btn" onClick={closeAmcModal}>
+                ×
+              </button>
+            </div>
+
+            <div className="modal-body">
+              {amcError && (
+                <div className="delete-error" style={{ marginBottom: 12 }}>
+                  {amcError}
+                </div>
+              )}
+
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+                  Amount Paid (₹)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={amcForm.amount}
+                  onChange={(e) =>
+                    setAmcForm({ ...amcForm, amount: e.target.value })
+                  }
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #ccc" }}
+                  placeholder="e.g. 2000"
+                />
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+                  AMC Start Date
+                </label>
+                <input
+                  type="date"
+                  value={amcForm.startDate}
+                  onChange={(e) =>
+                    setAmcForm({ ...amcForm, startDate: e.target.value })
+                  }
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #ccc" }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+                  AMC End Date
+                </label>
+                <input
+                  type="date"
+                  value={amcForm.endDate}
+                  onChange={(e) =>
+                    setAmcForm({ ...amcForm, endDate: e.target.value })
+                  }
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #ccc" }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+                  Payment Date
+                </label>
+                <input
+                  type="date"
+                  value={amcForm.paymentDate}
+                  onChange={(e) =>
+                    setAmcForm({ ...amcForm, paymentDate: e.target.value })
+                  }
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #ccc" }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+                  Notes (optional)
+                </label>
+                <input
+                  type="text"
+                  value={amcForm.notes}
+                  onChange={(e) =>
+                    setAmcForm({ ...amcForm, notes: e.target.value })
+                  }
+                  style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #ccc" }}
+                  placeholder="Any notes about this payment"
+                />
+              </div>
+
+              <div className="delete-actions">
+                <button className="btn btn-outline" onClick={closeAmcModal}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleAmcPayment}
+                  disabled={amcLoading}
+                >
+                  {amcLoading ? "Saving..." : "Save AMC Payment"}
                 </button>
               </div>
             </div>

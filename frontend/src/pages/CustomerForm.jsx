@@ -23,32 +23,32 @@ const CustomerForm = () => {
     phone: "",
     address: "",
     roModel: "",
-    bodyType: "",
+    roBodyType: "",
     installationDate: "",
     filterPrice: "",
     initialPaidAmount: "",
     lastServiceDate: "",
-    location: "",
+    locationMapLink: "",
     isActive: true,
+    customerType: "REGULAR",
+    amcStartDate: "",
+    amcEndDate: "",
   });
 
-  // Load RO Models (active + quantity > 0)
+  // Load RO Models
   useEffect(() => {
     const loadModels = async () => {
       try {
         const res = await api.get("/api/inventory/ro-models");
         const models = res.models || [];
-
         const availableModels = models
           .filter((m) => m.isActive && m.quantity > 0)
           .map((m) => m.modelName);
-
         setRoModels(availableModels);
       } catch (err) {
         console.error("Failed to load RO models");
       }
     };
-
     loadModels();
   }, []);
 
@@ -80,14 +80,17 @@ const CustomerForm = () => {
           phone: customer.phone || "",
           address: customer.address || "",
           roModel: customer.roModel || "",
-          bodyType: customer.bodyType || "",
+          roBodyType: customer.roBodyType || "",
           installationDate: customer.installationDate?.slice(0, 10) || "",
           filterPrice: customer.payment?.filterPrice || "",
           initialPaidAmount: "",
           lastServiceDate:
             customer.service?.lastServiceDate?.slice(0, 10) || "",
-          location: customer.location || "",
+          locationMapLink: customer.location?.mapLink || "",
           isActive: customer.isActive ?? true,
+          customerType: customer.customerType || "REGULAR",
+          amcStartDate: customer.amcContract?.startDate?.slice(0, 10) || "",
+          amcEndDate: customer.amcContract?.endDate?.slice(0, 10) || "",
         });
       } catch (err) {
         setError(err.message || "Failed to load customer");
@@ -120,10 +123,38 @@ const CustomerForm = () => {
 
     try {
       if (isEdit) {
-        const { filterPrice, initialPaidAmount, ...updatePayload } = form;
-        await api.patch(`/api/customers/${id}`, updatePayload);
+        const payload = {
+          name: form.name,
+          phone: form.phone,
+          address: form.address,
+          roModel: form.roModel,
+          roBodyType: form.roBodyType,
+          isActive: form.isActive,
+          location: { mapLink: form.locationMapLink },
+        };
+        await api.patch(`/api/customers/${id}`, payload);
       } else {
-        await api.post("/api/customers", form);
+        const payload = {
+          name: form.name,
+          phone: form.phone,
+          address: form.address,
+          roModel: form.roModel,
+          roBodyType: form.roBodyType,
+          installationDate: form.installationDate,
+          filterPrice: form.filterPrice,
+          initialPaidAmount: form.initialPaidAmount,
+          lastServiceDate: form.lastServiceDate,
+          location: { mapLink: form.locationMapLink },
+          customerType: form.customerType,
+          amcContract:
+            form.customerType === "AMC"
+              ? {
+                  startDate: form.amcStartDate,
+                  endDate: form.amcEndDate,
+                }
+              : undefined,
+        };
+        await api.post("/api/customers", payload);
       }
       navigate("/customers");
     } catch (err) {
@@ -215,8 +246,8 @@ const CustomerForm = () => {
               <div className="form-group">
                 <label className="form-label">Body Type</label>
                 <input
-                  name="bodyType"
-                  value={form.bodyType}
+                  name="roBodyType"
+                  value={form.roBodyType}
                   onChange={handleChange}
                   className="form-input"
                 />
@@ -246,43 +277,93 @@ const CustomerForm = () => {
                 />
               </div>
             </div>
-
-            <div className="form-grid">
-              <div className="form-group">
-                <label className="form-label">Filter Price</label>
-                <input
-                  type="number"
-                  name="filterPrice"
-                  value={form.filterPrice}
-                  disabled={isEdit}
-                  onChange={handleChange}
-                  className="form-input"
-                />
-              </div>
-
-              {!isEdit && (
+{/*  //////////////////////////////////////// */}
+            {/* Service Only customers don't buy a machine from you, so no filter price */}
+            {form.customerType !== "SERVICE_ONLY" && (
+              <div className="form-grid">
                 <div className="form-group">
-                  <label className="form-label">Initial Paid Amount</label>
+                  <label className="form-label">Filter Price</label>
                   <input
                     type="number"
-                    name="initialPaidAmount"
-                    value={form.initialPaidAmount}
+                    name="filterPrice"
+                    value={form.filterPrice}
+                    disabled={isEdit}
                     onChange={handleChange}
                     className="form-input"
                   />
                 </div>
-              )}
-            </div>
 
+                {!isEdit && (
+                  <div className="form-group">
+                    <label className="form-label">Initial Paid Amount</label>
+                    <input
+                      type="number"
+                      name="initialPaidAmount"
+                      value={form.initialPaidAmount}
+                      onChange={handleChange}
+                      className="form-input"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+{/* ./////////////////. */}
             <div className="form-group">
-              <label className="form-label">Location / Landmark</label>
+              <label className="form-label">Location / Map Link</label>
               <input
-                name="location"
-                value={form.location}
+                name="locationMapLink"
+                value={form.locationMapLink}
                 onChange={handleChange}
                 className="form-input"
+                placeholder="Google Maps link or landmark"
               />
             </div>
+
+            {/* Customer Type — only shown when creating */}
+            {!isEdit && (
+              <div className="form-group">
+                <label className="form-label">Customer Type</label>
+                <select
+                  name="customerType"
+                  value={form.customerType}
+                  onChange={handleChange}
+                  className="form-input"
+                >
+                   <option value="REGULAR">Regular</option>
+                <option value="AMC">AMC (Annual Maintenance Contract)</option>
+                <option value="SERVICE_ONLY">Service Only (customer owns machine)</option>
+                </select>
+              </div>
+            )}
+
+            {/* AMC contract dates — only shown when AMC is selected on create */}
+            {!isEdit && form.customerType === "AMC" && (
+              <div className="form-grid">
+                <div className="form-group">
+                  <label className="form-label">AMC Start Date</label>
+                  <input
+                    type="date"
+                    name="amcStartDate"
+                    value={form.amcStartDate}
+                    onChange={handleChange}
+                    className="form-input"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">AMC End Date</label>
+                  <input
+                    type="date"
+                    name="amcEndDate"
+                    value={form.amcEndDate}
+                    onChange={handleChange}
+                    className="form-input"
+                    required
+                  />
+                </div>
+              </div>
+            )}
 
             {isEdit && (
               <div className="form-group">
