@@ -29,7 +29,7 @@ const ENUM_LABELS = {
     EXPIRED: "Expired",
     CANCELLED: "Cancelled",
   },
-customerType: {
+  customerType: {
     REGULAR: "Regular",
     AMC: "AMC",
     SERVICE_ONLY: "Service Only",

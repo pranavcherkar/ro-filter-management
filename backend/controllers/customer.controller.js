@@ -41,7 +41,11 @@ const resolveAmcStatus = (amcContract) => {
 
 const normalizeAmcContract = (customerType, amcContractInput) => {
   if (customerType !== "AMC") return null;
-  if (!amcContractInput || !amcContractInput.startDate || !amcContractInput.endDate) {
+  if (
+    !amcContractInput ||
+    !amcContractInput.startDate ||
+    !amcContractInput.endDate
+  ) {
     return null;
   }
 
@@ -93,8 +97,12 @@ export const createCustomer = async (req, res) => {
       location,
     } = req.body;
 
-    // 1️⃣ Basic validation
-    if (!name || !phone || !roModel || !installationDate) {
+    //  Basic validation
+    // SERVICE_ONLY customers own their machine — roModel is optional for them.
+
+    const roModelRequired = customerType !== "SERVICE_ONLY";
+
+    if (!name || !phone || !installationDate || (roModelRequired && !roModel)) {
       return res.status(400).json({
         success: false,
         message: "Required fields missing",
@@ -118,7 +126,8 @@ export const createCustomer = async (req, res) => {
     const installDateObj = new Date(installationDate);
     const serviceDateObj = lastServiceDate ? new Date(lastServiceDate) : null;
     const normalizedServiceCycleOverride =
-      serviceCycleMonthsOverride === undefined || serviceCycleMonthsOverride === null
+      serviceCycleMonthsOverride === undefined ||
+      serviceCycleMonthsOverride === null
         ? null
         : Number(serviceCycleMonthsOverride);
 
@@ -305,13 +314,7 @@ export const updateCustomerPayment = async (req, res) => {
 export const recordAmcPayment = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      amount,
-      startDate,
-      endDate,
-      paymentDate,
-      notes = "",
-    } = req.body;
+    const { amount, startDate, endDate, paymentDate, notes = "" } = req.body;
 
     const paidAmount = Number(amount);
     if (!Number.isFinite(paidAmount) || paidAmount <= 0) {
@@ -330,7 +333,9 @@ export const recordAmcPayment = async (req, res) => {
 
     const normalizedStartDate = new Date(startDate);
     const normalizedEndDate = new Date(endDate);
-    const normalizedPaymentDate = paymentDate ? new Date(paymentDate) : new Date();
+    const normalizedPaymentDate = paymentDate
+      ? new Date(paymentDate)
+      : new Date();
 
     if (
       Number.isNaN(normalizedStartDate.getTime()) ||
@@ -471,9 +476,14 @@ export const updateCustomer = async (req, res) => {
       }
     }
 
-    if (req.body.amcContract !== undefined || req.body.customerType !== undefined) {
+    if (
+      req.body.amcContract !== undefined ||
+      req.body.customerType !== undefined
+    ) {
       const effectiveType =
-        updates.customerType || req.body.customerType || existingCustomer.customerType;
+        updates.customerType ||
+        req.body.customerType ||
+        existingCustomer.customerType;
       const inputContract =
         req.body.amcContract !== undefined
           ? req.body.amcContract
@@ -514,7 +524,7 @@ export const updateCustomer = async (req, res) => {
 
 export const deleteCustomer = async (req, res) => {
   try {
-   const { id } = req.params;
+    const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
@@ -523,7 +533,9 @@ export const deleteCustomer = async (req, res) => {
       });
     }
 
-    const mode = String(req.body?.mode || "soft").toLowerCase();
+    const mode = String(
+      req.query?.mode || req.body?.mode || "soft",
+    ).toLowerCase();
 
     if (!["soft", "hard"].includes(mode)) {
       return res.status(400).json({
@@ -553,8 +565,6 @@ export const deleteCustomer = async (req, res) => {
         });
       }
 
-      // Use findByIdAndUpdate to bypass full document validation
-      // (avoids crashes on old customers with amcContract.status = null)
       await Customer.findByIdAndUpdate(id, { $set: { isActive: false } });
 
       return res.status(200).json({
@@ -564,17 +574,31 @@ export const deleteCustomer = async (req, res) => {
       });
     }
 
-    //
     const [servicesResult, invoicesResult] = await Promise.all([
-      Service.deleteMany({ userId: req.userId, customerId: customer._id }),
-      Invoice.deleteMany({ userId: req.userId, customerId: customer._id }),
+      Service.deleteMany({
+        userId: req.userId,
+        customerId: customer._id,
+      }),
+      Invoice.deleteMany({
+        userId: req.userId,
+        customerId: customer._id,
+      }),
     ]);
 
     if (customer.roModel && customer.customerType !== "SERVICE_ONLY") {
       await ROModelInventory.findOneAndUpdate(
-        { userId: req.userId, modelName: customer.roModel },
-        { $inc: { quantity: 1 }, $setOnInsert: { isActive: true } },
-        { upsert: true, new: true },
+        {
+          userId: req.userId,
+          modelName: customer.roModel,
+        },
+        {
+          $inc: { quantity: 1 },
+          $setOnInsert: { isActive: true },
+        },
+        {
+          upsert: true,
+          new: true,
+        },
       );
     }
 
@@ -591,6 +615,7 @@ export const deleteCustomer = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to delete customer",

@@ -174,9 +174,8 @@ const CustomerDetail = () => {
     try {
       setDeleteLoading(true);
       setDeleteError("");
-      await api.delete(`/api/customers/${id}`, {
-        data: { mode: deleteMode },
-      });
+      await api.delete(`/api/customers/${id}?mode=${deleteMode}`);
+
       navigate("/customers");
     } catch (err) {
       setDeleteError(err?.message || "Failed to delete customer");
@@ -474,7 +473,9 @@ const CustomerDetail = () => {
                   onClick={() => openServiceModal(service.id)}
                 >
                   <div>
-                    <div className="history-type">{getEnumLabel("serviceType", service.type)}</div>
+                    <div className="history-type">
+                      {getEnumLabel("serviceType", service.type)}
+                    </div>
                     <div className="history-date">
                       {formatDate(service.date)}
                     </div>
@@ -517,7 +518,8 @@ const CustomerDetail = () => {
                     {formatDate(selectedService.serviceDate)}
                   </p>
                   <p>
-                    <strong>Type:</strong> {getEnumLabel("serviceType", selectedService.serviceType)}
+                    <strong>Type:</strong>{" "}
+                    {getEnumLabel("serviceType", selectedService.serviceType)}
                   </p>
                   <p>
                     <strong>Service Charge:</strong> ₹
@@ -615,7 +617,9 @@ const CustomerDetail = () => {
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>
-                {amcStatus === "NOT STARTED" ? "Start AMC" : "Renew / Record AMC Payment"}
+                {amcStatus === "NOT STARTED"
+                  ? "Start AMC"
+                  : "Renew / Record AMC Payment"}
               </h3>
               <button className="close-btn" onClick={closeAmcModal}>
                 ×
@@ -630,7 +634,9 @@ const CustomerDetail = () => {
               )}
 
               <div style={{ marginBottom: 12 }}>
-                <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+                <label
+                  style={{ display: "block", marginBottom: 4, fontWeight: 500 }}
+                >
                   Amount Paid (₹)
                 </label>
                 <input
@@ -640,13 +646,20 @@ const CustomerDetail = () => {
                   onChange={(e) =>
                     setAmcForm({ ...amcForm, amount: e.target.value })
                   }
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #ccc" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    border: "1px solid #ccc",
+                  }}
                   placeholder="e.g. 2000"
                 />
               </div>
 
               <div style={{ marginBottom: 12 }}>
-                <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+                <label
+                  style={{ display: "block", marginBottom: 4, fontWeight: 500 }}
+                >
                   AMC Start Date
                 </label>
                 <input
@@ -655,12 +668,19 @@ const CustomerDetail = () => {
                   onChange={(e) =>
                     setAmcForm({ ...amcForm, startDate: e.target.value })
                   }
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #ccc" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    border: "1px solid #ccc",
+                  }}
                 />
               </div>
 
               <div style={{ marginBottom: 12 }}>
-                <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+                <label
+                  style={{ display: "block", marginBottom: 4, fontWeight: 500 }}
+                >
                   AMC End Date
                 </label>
                 <input
@@ -669,12 +689,19 @@ const CustomerDetail = () => {
                   onChange={(e) =>
                     setAmcForm({ ...amcForm, endDate: e.target.value })
                   }
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #ccc" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    border: "1px solid #ccc",
+                  }}
                 />
               </div>
 
               <div style={{ marginBottom: 12 }}>
-                <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+                <label
+                  style={{ display: "block", marginBottom: 4, fontWeight: 500 }}
+                >
                   Payment Date
                 </label>
                 <input
@@ -683,12 +710,19 @@ const CustomerDetail = () => {
                   onChange={(e) =>
                     setAmcForm({ ...amcForm, paymentDate: e.target.value })
                   }
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #ccc" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    border: "1px solid #ccc",
+                  }}
                 />
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", marginBottom: 4, fontWeight: 500 }}>
+                <label
+                  style={{ display: "block", marginBottom: 4, fontWeight: 500 }}
+                >
                   Notes (optional)
                 </label>
                 <input
@@ -697,7 +731,12 @@ const CustomerDetail = () => {
                   onChange={(e) =>
                     setAmcForm({ ...amcForm, notes: e.target.value })
                   }
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: "1px solid #ccc" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: 6,
+                    border: "1px solid #ccc",
+                  }}
                   placeholder="Any notes about this payment"
                 />
               </div>

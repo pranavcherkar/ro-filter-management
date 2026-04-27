@@ -68,11 +68,11 @@ const CustomersList = () => {
   };
 
   const getCustomerTypeStyle = (type) => {
-    if (type === "AMC") {
-      return { bg: "#e0e7ff", text: "#3730a3" };
-    }
+    if (type === "AMC") return { bg: "#e0e7ff", text: "#3730a3" }; // blue
 
-    return { bg: "#e2e8f0", text: "#334155" };
+    if (type === "SERVICE_ONLY") return { bg: "#fef9c3", text: "#854d0e" }; // yellow
+
+    return { bg: "#e2e8f0", text: "#334155" }; // grey (Regular)
   };
 
   const archiveCustomer = async (e, customer) => {
@@ -88,9 +88,7 @@ const CustomersList = () => {
 
     try {
       setArchivingId(customer.id);
-      await api.delete(`/api/customers/${customer.id}`, {
-        data: { mode: "soft" },
-      });
+      await api.delete(`/api/customers/${customer.id}?mode=soft`);
 
       await loadCustomers();
     } catch (err) {
@@ -118,7 +116,10 @@ const CustomersList = () => {
           onChange={(e) => setSearchTerm(e.target.value)}
         />
 
-        <button className="add-button" onClick={() => navigate("/customers/new")}>
+        <button
+          className="add-button"
+          onClick={() => navigate("/customers/new")}
+        >
           + Add New
         </button>
       </div>
@@ -126,19 +127,25 @@ const CustomersList = () => {
       <div className="filter-row">
         <div className="toggle-group">
           <button
-            className={statusFilter === "active" ? "toggle-btn active" : "toggle-btn"}
+            className={
+              statusFilter === "active" ? "toggle-btn active" : "toggle-btn"
+            }
             onClick={() => setStatusFilter("active")}
           >
             Active
           </button>
           <button
-            className={statusFilter === "all" ? "toggle-btn active" : "toggle-btn"}
+            className={
+              statusFilter === "all" ? "toggle-btn active" : "toggle-btn"
+            }
             onClick={() => setStatusFilter("all")}
           >
             All
           </button>
           <button
-            className={statusFilter === "inactive" ? "toggle-btn active" : "toggle-btn"}
+            className={
+              statusFilter === "inactive" ? "toggle-btn active" : "toggle-btn"
+            }
             onClick={() => setStatusFilter("inactive")}
           >
             Inactive
@@ -147,29 +154,45 @@ const CustomersList = () => {
 
         <div className="toggle-group">
           <button
-            className={typeFilter === "ALL" ? "toggle-btn active" : "toggle-btn"}
+            className={
+              typeFilter === "ALL" ? "toggle-btn active" : "toggle-btn"
+            }
             onClick={() => setTypeFilter("ALL")}
           >
             All Types
           </button>
           <button
-            className={typeFilter === "REGULAR" ? "toggle-btn active" : "toggle-btn"}
+            className={
+              typeFilter === "REGULAR" ? "toggle-btn active" : "toggle-btn"
+            }
             onClick={() => setTypeFilter("REGULAR")}
           >
             Regular
           </button>
           <button
-            className={typeFilter === "AMC" ? "toggle-btn active" : "toggle-btn"}
+            className={
+              typeFilter === "AMC" ? "toggle-btn active" : "toggle-btn"
+            }
             onClick={() => setTypeFilter("AMC")}
           >
             AMC
+          </button>
+          <button
+            className={
+              typeFilter === "SERVICE_ONLY" ? "toggle-btn active" : "toggle-btn"
+            }
+            onClick={() => setTypeFilter("SERVICE_ONLY")}
+          >
+            Service Only
           </button>
         </div>
       </div>
 
       <div className="customer-grid">
         {filteredCustomers.length === 0 ? (
-          <p className="no-results">No customers found matching your filters.</p>
+          <p className="no-results">
+            No customers found matching your filters.
+          </p>
         ) : (
           filteredCustomers.map((customer) => {
             const paymentStyle = getStatusStyle(customer.filterPaymentStatus);
@@ -198,7 +221,10 @@ const CustomersList = () => {
                       }}
                     >
                       {customer.filterPaymentStatus
-                        ? getEnumLabel("paymentStatus", customer.filterPaymentStatus)
+                        ? getEnumLabel(
+                            "paymentStatus",
+                            customer.filterPaymentStatus,
+                          )
                         : "N/A"}
                     </span>
                   </div>
@@ -227,7 +253,10 @@ const CustomersList = () => {
                         color: typeStyle.text,
                       }}
                     >
-                      {getEnumLabel("customerType", customer.customerType || "REGULAR")}
+                      {getEnumLabel(
+                        "customerType",
+                        customer.customerType || "REGULAR",
+                      )}
                     </span>
                   </div>
                 </div>
