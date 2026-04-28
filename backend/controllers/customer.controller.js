@@ -386,7 +386,9 @@ export const recordAmcPayment = async (req, res) => {
       });
     }
 
-    customer.customerType = "AMC";
+    if (customer.customerType === "REGULAR") {
+      customer.customerType = "AMC";
+    }
     customer.amcContract = {
       ...(customer.amcContract ? customer.amcContract.toObject() : {}),
       startDate: normalizedStartDate,

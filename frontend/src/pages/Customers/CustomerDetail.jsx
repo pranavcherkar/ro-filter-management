@@ -238,7 +238,7 @@ const CustomerDetail = () => {
     try {
       setAmcLoading(true);
       await api.patch(`/api/customers/${id}`, {
-        customerType: "REGULAR",
+        customerType: isServiceOnly ? "SERVICE_ONLY" : "REGULAR",
         amcContract: null,
       });
       await loadData();
@@ -460,7 +460,7 @@ const CustomerDetail = () => {
         )}
 
         {/* ── AMC DETAILS — REGULAR and AMC only (not SERVICE_ONLY) ──────── */}
-        {!isServiceOnly && (
+        {
           <div className="detail-card amc-card">
             <div className="section-title">🛡️ AMC Details</div>
 
@@ -510,7 +510,7 @@ const CustomerDetail = () => {
               </button>
             </div>
           </div>
-        )}
+        }
 
         {/* ── SERVICE HISTORY — all types ────────────────────────────────── */}
         <div className="detail-card">
