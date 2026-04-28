@@ -15,7 +15,7 @@ const filterSchema = new mongoose.Schema(
       required: true, // usually 6
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const amcContractSchema = new mongoose.Schema(
@@ -54,7 +54,7 @@ const amcContractSchema = new mongoose.Schema(
       default: 0,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const customerSchema = new mongoose.Schema(
@@ -80,17 +80,17 @@ const customerSchema = new mongoose.Schema(
 
     roModel: {
       type: String,
-      required: true,
+      default: "",
     },
     roBodyType: {
       type: String,
       default: "",
     },
     customerType: {
-  type: String,
-  enum: ["REGULAR", "AMC", "SERVICE_ONLY"],
-  default: "REGULAR",
-},
+      type: String,
+      enum: ["REGULAR", "AMC", "SERVICE_ONLY"],
+      default: "REGULAR",
+    },
     amcContract: {
       type: amcContractSchema,
       default: null,
@@ -98,7 +98,7 @@ const customerSchema = new mongoose.Schema(
 
     installationDate: {
       type: Date,
-      required: true,
+      default: null,
     },
     serviceCycleMonthsOverride: {
       type: Number,
@@ -145,7 +145,7 @@ const customerSchema = new mongoose.Schema(
       mapLink: { type: String, default: "" },
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export const Customer = mongoose.model("Customer", customerSchema);

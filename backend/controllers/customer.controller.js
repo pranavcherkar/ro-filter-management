@@ -90,44 +90,64 @@ export const createCustomer = async (req, res) => {
       amcContract,
       installationDate,
       filterPrice = 0,
-      initialPaidAmount = 0, // ✅ match frontend
+      initialPaidAmount = 0,
       lastServiceDate,
       filters,
       serviceCycleMonthsOverride,
       location,
     } = req.body;
 
-    //  Basic validation
-    // SERVICE_ONLY customers own their machine — roModel is optional for them.
+    // ── Validation — rules differ by customer type ────────────────────────────
+    //
+    //   REGULAR      → roModel + installationDate required (bought machine from us)
+    //   AMC          → amcContract startDate + endDate required (machine may be external)
+    //   SERVICE_ONLY → only name + phone required (they own their machine)
 
-    const roModelRequired = customerType !== "SERVICE_ONLY";
-
-    if (!name || !phone || !installationDate || (roModelRequired && !roModel)) {
+    if (!name || !phone) {
       return res.status(400).json({
         success: false,
-        message: "Required fields missing",
+        message: "Name and phone are required for all customer types",
       });
     }
 
-    if (
-      customerType === "AMC" &&
-      (!amcContract || !amcContract.startDate || !amcContract.endDate)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "AMC customers require contract startDate and endDate",
-      });
+    if (customerType === "REGULAR") {
+      if (!roModel) {
+        return res.status(400).json({
+          success: false,
+          message: "RO model is required for Regular customers",
+        });
+      }
+      if (!installationDate) {
+        return res.status(400).json({
+          success: false,
+          message: "Installation date is required for Regular customers",
+        });
+      }
     }
 
-    // Convert safely
-    const price = Number(filterPrice) || 0;
-    const paid = Number(initialPaidAmount) || 0;
+    if (customerType === "AMC") {
+      if (!amcContract || !amcContract.startDate || !amcContract.endDate) {
+        return res.status(400).json({
+          success: false,
+          message: "AMC customers require contract startDate and endDate",
+        });
+      }
+    }
 
-    const installDateObj = new Date(installationDate);
+    // ── Safely convert dates ──────────────────────────────────────────────────
+    // installationDate only exists for REGULAR — guard against undefined
+    const installDateObj = installationDate ? new Date(installationDate) : null;
     const serviceDateObj = lastServiceDate ? new Date(lastServiceDate) : null;
+
+    // ── Financial values (REGULAR only) ───────────────────────────────────────
+    // AMC and SERVICE_ONLY never paid for a machine through us
+    const price = customerType === "REGULAR" ? Number(filterPrice) || 0 : 0;
+    const paid =
+      customerType === "REGULAR" ? Number(initialPaidAmount) || 0 : 0;
+
+    // ── Service cycle override ────────────────────────────────────────────────
     const normalizedServiceCycleOverride =
-      serviceCycleMonthsOverride === undefined ||
-      serviceCycleMonthsOverride === null
+      serviceCycleMonthsOverride == null
         ? null
         : Number(serviceCycleMonthsOverride);
 
@@ -147,8 +167,9 @@ export const createCustomer = async (req, res) => {
       ownerDefaultCycleMonths: req.user?.defaultServiceCycleMonths,
     });
 
-    // 2️⃣ Check RO model stock (skip for SERVICE_ONLY — they own their machine)
-    if (customerType !== "SERVICE_ONLY") {
+    // ── 2️⃣ Inventory deduct ────────────────────────────────────────────────────
+    // Only REGULAR customers bought the machine from us — skip for all others
+    if (customerType === "REGULAR" && roModel) {
       const roStock = await ROModelInventory.findOne({
         userId,
         modelName: roModel,
@@ -165,71 +186,68 @@ export const createCustomer = async (req, res) => {
       await roStock.save();
     }
 
-    // 3️⃣ Initialize filters
+    // ── 3️⃣ Initialize filters ─────────────────────────────────────────────────
+    // Baseline date: last service → installation → today (in that priority)
+    const baselineDate = serviceDateObj || installDateObj || new Date();
+
     const initializedFilters = (filters || []).map((f) => ({
       name: f.name,
       intervalMonths: f.intervalMonths,
-      lastChangedDate: serviceDateObj || installDateObj,
+      lastChangedDate: baselineDate,
     }));
 
-    // 4️⃣ Decide nextServiceDate
+    // ── 4️⃣ Next service date ──────────────────────────────────────────────────
     let nextServiceDate = null;
 
     if (serviceDateObj) {
       nextServiceDate = addMonths(serviceDateObj, resolvedServiceCycleMonths);
-    } else {
-      const now = new Date();
-      const diffDays = (now - installDateObj) / (1000 * 60 * 60 * 24);
-
+    } else if (installDateObj) {
+      const diffDays = (new Date() - installDateObj) / (1000 * 60 * 60 * 24);
       if (diffDays <= 30) {
         nextServiceDate = addMonths(installDateObj, resolvedServiceCycleMonths);
       }
     }
+    // For AMC / SERVICE_ONLY with no installDate, nextServiceDate stays null
+    // and will be set after their first service record is added
 
-    // 5️⃣ Decide payment status
+    // ── 5️⃣ Payment status (REGULAR only) ─────────────────────────────────────
     let paymentStatus = "UNPAID";
-
-    if (paid >= price && price > 0) {
-      paymentStatus = "PAID";
-    } else if (paid > 0 && paid < price) {
-      paymentStatus = "PARTIAL";
+    if (price > 0) {
+      if (paid >= price) paymentStatus = "PAID";
+      else if (paid > 0) paymentStatus = "PARTIAL";
     }
 
-    // 6️⃣ Create customer
+    // ── 6️⃣ Create customer ────────────────────────────────────────────────────
     const customer = await Customer.create({
       userId,
       name,
       phone,
       address,
-      roModel,
-      roBodyType,
+      roModel: roModel || "",
+      roBodyType: roBodyType || "",
       customerType,
       amcContract: normalizeAmcContract(customerType, amcContract),
-      installationDate: installDateObj,
+      installationDate: installDateObj, // null for AMC / SERVICE_ONLY
       serviceCycleMonthsOverride: normalizedServiceCycleOverride,
-      filterPrice: price,
-      filterPaidAmount: paid,
-      filterPaymentStatus: paymentStatus,
+      filterPrice: price, // 0 for AMC / SERVICE_ONLY
+      filterPaidAmount: paid, // 0 for AMC / SERVICE_ONLY
+      filterPaymentStatus: paymentStatus, // UNPAID for AMC / SERVICE_ONLY
       lastServiceDate: serviceDateObj,
       nextServiceDate,
       filters: initializedFilters,
       location,
     });
 
-    // 7️⃣ Create FILTER_SALE invoice
-    if (price > 0) {
+    // ── 7️⃣ Create FILTER_SALE invoice (REGULAR + price > 0 only) ─────────────
+    // AMC and SERVICE_ONLY never bought a machine from us — no sale invoice
+    if (customerType === "REGULAR" && price > 0) {
       await Invoice.create({
         userId,
         customerId: customer._id,
         type: "FILTER_SALE",
         referenceId: customer._id,
-        invoiceDate: installDateObj, // ✅ correct business date
-        items: [
-          {
-            name: `RO Filter (${roModel})`,
-            price: price,
-          },
-        ],
+        invoiceDate: installDateObj,
+        items: [{ name: `RO Filter (${roModel})`, price }],
         totalAmount: price,
         paidAmount: paid,
         paymentStatus,

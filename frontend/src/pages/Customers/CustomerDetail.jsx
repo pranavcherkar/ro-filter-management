@@ -24,7 +24,6 @@ const CustomerDetail = () => {
 
   // AMC modal state
   const [showAmcModal, setShowAmcModal] = useState(false);
-  const [amcModalMode, setAmcModalMode] = useState("record"); // "record" | "stop"
   const [amcLoading, setAmcLoading] = useState(false);
   const [amcError, setAmcError] = useState("");
   const [amcForm, setAmcForm] = useState({
@@ -51,16 +50,13 @@ const CustomerDetail = () => {
         customerRes?.customer ||
         null;
 
-      if (!customerData) {
-        throw new Error("Customer data not found");
-      }
+      if (!customerData) throw new Error("Customer data not found");
 
       setCustomer(customerData);
 
       const history = Array.isArray(historyRes.services)
         ? historyRes.services
         : [];
-
       history.sort((a, b) => new Date(b.date) - new Date(a.date));
       setServiceHistory(history);
     } catch (err) {
@@ -74,6 +70,8 @@ const CustomerDetail = () => {
   useEffect(() => {
     loadData();
   }, [id]);
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
 
   const formatDate = (date) => {
     if (!date) return "-";
@@ -90,27 +88,6 @@ const CustomerDetail = () => {
     return String(val);
   };
 
-  const calculateAmcDaysLeft = (amcEndDate, amcStatus) => {
-    if (!amcEndDate || amcStatus === "CANCELLED") return "-";
-
-    const daysLeft = Math.ceil(
-      (new Date(amcEndDate) - new Date()) / (1000 * 60 * 60 * 24),
-    );
-
-    return daysLeft < 0 ? "Expired" : `${daysLeft} days`;
-  };
-
-  const getLastAmcPayment = () => {
-    const amount =
-      customer?.amcLastPayment?.amount ??
-      customer?.amcContract?.lastPaymentAmount ??
-      null;
-    const date =
-      customer?.amcLastPayment?.date ?? customer?.amcContract?.lastPaymentDate;
-
-    return { amount, date };
-  };
-
   const getBadgeClass = (status) => {
     const s = String(status || "").toLowerCase();
     return ["paid", "active", "completed"].includes(s)
@@ -118,16 +95,34 @@ const CustomerDetail = () => {
       : "badge badge-bad";
   };
 
+  const calculateAmcDaysLeft = (endDate, status) => {
+    if (!endDate || status === "CANCELLED") return "-";
+    const days = Math.ceil(
+      (new Date(endDate) - new Date()) / (1000 * 60 * 60 * 24),
+    );
+    return days < 0 ? "Expired" : `${days} days`;
+  };
+
+  // ── Derived values (computed after customer loads) ──────────────────────────
+
+  const isRegular = customer?.customerType === "REGULAR";
+  const isAmc = customer?.customerType === "AMC";
+  const isServiceOnly = customer?.customerType === "SERVICE_ONLY";
+
   const isPaid =
-    customer?.payment?.status &&
-    customer.payment.status.toLowerCase() === "paid";
+    isRegular && customer?.payment?.status?.toLowerCase() === "paid";
 
   const amcStatus = customer?.amcContract?.status || "NOT STARTED";
   const amcDaysLeft = calculateAmcDaysLeft(
     customer?.amcContract?.endDate,
     amcStatus,
   );
-  const lastAmcPayment = getLastAmcPayment();
+  const lastAmcPayment = {
+    amount: customer?.amcContract?.lastPaymentAmount ?? null,
+    date: customer?.amcContract?.lastPaymentDate ?? null,
+  };
+
+  // ── Service modal ──────────────────────────────────────────────────────────
 
   const openServiceModal = async (serviceId) => {
     try {
@@ -145,10 +140,8 @@ const CustomerDetail = () => {
 
   const handleDeleteService = async () => {
     if (!selectedService?.id || serviceDeleteLoading) return;
-    const confirmed = window.confirm(
-      "Delete this service from history? This cannot be undone.",
-    );
-    if (!confirmed) return;
+    if (!window.confirm("Delete this service record? This cannot be undone."))
+      return;
 
     try {
       setServiceDeleteLoading(true);
@@ -163,6 +156,8 @@ const CustomerDetail = () => {
     }
   };
 
+  // ── Customer delete modal ──────────────────────────────────────────────────
+
   const closeDeleteModal = () => {
     if (deleteLoading) return;
     setShowDeleteModal(false);
@@ -175,7 +170,6 @@ const CustomerDetail = () => {
       setDeleteLoading(true);
       setDeleteError("");
       await api.delete(`/api/customers/${id}?mode=${deleteMode}`);
-
       navigate("/customers");
     } catch (err) {
       setDeleteError(err?.message || "Failed to delete customer");
@@ -184,10 +178,9 @@ const CustomerDetail = () => {
     }
   };
 
-  // ── AMC handlers ──────────────────────────────────────────────
+  // ── AMC modal ──────────────────────────────────────────────────────────────
 
-  const openAmcModal = (mode) => {
-    setAmcModalMode(mode);
+  const openAmcModal = () => {
     setAmcError("");
     setAmcForm({
       amount: "",
@@ -207,7 +200,6 @@ const CustomerDetail = () => {
 
   const handleAmcPayment = async () => {
     setAmcError("");
-
     if (!amcForm.amount || Number(amcForm.amount) <= 0) {
       setAmcError("Please enter a valid amount.");
       return;
@@ -236,10 +228,12 @@ const CustomerDetail = () => {
   };
 
   const handleStopAmc = async () => {
-    const confirmed = window.confirm(
-      "Stop AMC for this customer? Their type will be set back to Regular.",
-    );
-    if (!confirmed) return;
+    if (
+      !window.confirm(
+        "Stop AMC for this customer? Their type will be set back to Regular.",
+      )
+    )
+      return;
 
     try {
       setAmcLoading(true);
@@ -247,14 +241,15 @@ const CustomerDetail = () => {
         customerType: "REGULAR",
         amcContract: null,
       });
-      setShowAmcModal(false);
       await loadData();
     } catch (err) {
-      setAmcError(err?.message || "Failed to stop AMC.");
+      alert(err?.message || "Failed to stop AMC.");
     } finally {
       setAmcLoading(false);
     }
   };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} />;
@@ -263,14 +258,42 @@ const CustomerDetail = () => {
   return (
     <div className="detail-wrapper">
       <div className="detail-container">
-        {/* HEADER */}
+        {/* ── HEADER ─────────────────────────────────────────────────────── */}
         <header className="detail-header">
           <div>
             <h1>{renderSafeValue(customer.name)}</h1>
             <p>📞 {renderSafeValue(customer.phone)}</p>
-            <div className="install-date">
-              Installed on: {formatDate(customer.installationDate)}
+
+            {/* Customer type badge */}
+            <div style={{ marginTop: 6 }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: "2px 10px",
+                  borderRadius: 20,
+                  background: isAmc
+                    ? "#e0e7ff"
+                    : isServiceOnly
+                      ? "#fef9c3"
+                      : "#dcfce7",
+                  color: isAmc
+                    ? "#3730a3"
+                    : isServiceOnly
+                      ? "#854d0e"
+                      : "#166534",
+                }}
+              >
+                {getEnumLabel("customerType", customer.customerType)}
+              </span>
             </div>
+
+            {/* Installation date — REGULAR only */}
+            {isRegular && customer.installationDate && (
+              <div className="install-date">
+                Installed on: {formatDate(customer.installationDate)}
+              </div>
+            )}
           </div>
 
           <div className="header-due">
@@ -281,7 +304,7 @@ const CustomerDetail = () => {
           </div>
         </header>
 
-        {/* ACTION BUTTONS */}
+        {/* ── ACTION BUTTONS ─────────────────────────────────────────────── */}
         <div className="action-panel">
           <button
             onClick={() => navigate(`/customers/${id}/edit`)}
@@ -290,13 +313,16 @@ const CustomerDetail = () => {
             Edit Profile
           </button>
 
-          <button
-            onClick={() => !isPaid && navigate(`/customers/${id}/payment`)}
-            className={`btn btn-outline ${isPaid ? "btn-disabled" : ""}`}
-            disabled={isPaid}
-          >
-            {isPaid ? "Payment ✔" : "Update Payment"}
-          </button>
+          {/* Update Payment — REGULAR only (they paid for a machine) */}
+          {isRegular && (
+            <button
+              onClick={() => !isPaid && navigate(`/customers/${id}/payment`)}
+              className={`btn btn-outline ${isPaid ? "btn-disabled" : ""}`}
+              disabled={isPaid}
+            >
+              {isPaid ? "Payment ✔" : "Update Payment"}
+            </button>
+          )}
 
           <button
             onClick={() => navigate(`/customers/${id}/services/new`)}
@@ -313,14 +339,16 @@ const CustomerDetail = () => {
           </button>
         </div>
 
-        {/* PAYMENT MESSAGE */}
+        {/* Payment completed banner — REGULAR only */}
         {isPaid && <div className="paid-banner">Payment completed.</div>}
 
-        {/* INFO GRID */}
+        {/* ── INFO GRID ──────────────────────────────────────────────────── */}
         <div className="info-grid">
-          {/* INSTALLATION DETAILS */}
+          {/* Machine / Installation Details */}
           <div className="detail-card">
-            <div className="section-title">Installation Details</div>
+            <div className="section-title">
+              {isRegular ? "Installation Details" : "Machine Details"}
+            </div>
 
             <div className="info-row">
               <span className="info-label">Address</span>
@@ -343,6 +371,16 @@ const CustomerDetail = () => {
               </span>
             </div>
 
+            {/* Installation date row — REGULAR only */}
+            {isRegular && (
+              <div className="info-row">
+                <span className="info-label">Installation Date</span>
+                <span className="info-value">
+                  {formatDate(customer.installationDate)}
+                </span>
+              </div>
+            )}
+
             <div className="info-row">
               <span className="info-label">Location</span>
               <span className="info-value">
@@ -351,16 +389,29 @@ const CustomerDetail = () => {
             </div>
           </div>
 
-          {/* SERVICE HEALTH */}
+          {/* Service Health */}
           <div className="detail-card">
             <div className="section-title">Service Health</div>
 
-            <div className="info-row">
-              <span className="info-label">Status</span>
-              <span className={getBadgeClass(customer.payment?.status)}>
-                {getEnumLabel("paymentStatus", customer.payment?.status)}
-              </span>
-            </div>
+            {/* Payment status row — REGULAR only */}
+            {isRegular && (
+              <div className="info-row">
+                <span className="info-label">Payment Status</span>
+                <span className={getBadgeClass(customer.payment?.status)}>
+                  {getEnumLabel("paymentStatus", customer.payment?.status)}
+                </span>
+              </div>
+            )}
+
+            {/* AMC status row — AMC customers */}
+            {isAmc && (
+              <div className="info-row">
+                <span className="info-label">AMC Status</span>
+                <span className={getBadgeClass(amcStatus)}>
+                  {getEnumLabel("amcStatus", amcStatus)}
+                </span>
+              </div>
+            )}
 
             <div className="info-row">
               <span className="info-label">Last Service</span>
@@ -368,102 +419,107 @@ const CustomerDetail = () => {
                 {formatDate(customer.service?.lastServiceDate)}
               </span>
             </div>
-          </div>
-        </div>
 
-        {/* FINANCIAL SUMMARY */}
-        <div className="detail-card financial-card">
-          <div className="section-title">💰 Financial Summary</div>
-
-          <div className="financial-summary-row">
-            <div className="financial-box">
-              <div className="financial-label">Filter Price</div>
-              <div className="financial-amount">
-                ₹{renderSafeValue(customer.payment?.filterPrice)}
-              </div>
-            </div>
-
-            <div className="financial-box">
-              <div className="financial-label">Total Paid</div>
-              <div className="financial-amount">
-                ₹{renderSafeValue(customer.payment?.paidAmount)}
-              </div>
-            </div>
-
-            <div className="financial-box">
-              <div className="financial-label">Balance Due</div>
-              <div className="financial-amount">
-                ₹{renderSafeValue(customer.payment?.pendingAmount)}
-              </div>
+            <div className="info-row">
+              <span className="info-label">Next Service Due</span>
+              <span className="info-value">
+                {formatDate(customer.service?.nextServiceDate)}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* AMC DETAILS */}
-        <div className="detail-card amc-card">
-          <div className="section-title">🛡️ AMC Details</div>
+        {/* ── FINANCIAL SUMMARY — REGULAR only ───────────────────────────── */}
+        {isRegular && (
+          <div className="detail-card financial-card">
+            <div className="section-title">💰 Financial Summary</div>
 
-          <div className="info-row">
-            <span className="info-label">AMC Status</span>
-            <span className={getBadgeClass(amcStatus)}>
-              {getEnumLabel("amcStatus", amcStatus)}
-            </span>
+            <div className="financial-summary-row">
+              <div className="financial-box">
+                <div className="financial-label">Filter Price</div>
+                <div className="financial-amount">
+                  ₹{renderSafeValue(customer.payment?.filterPrice)}
+                </div>
+              </div>
+
+              <div className="financial-box">
+                <div className="financial-label">Total Paid</div>
+                <div className="financial-amount">
+                  ₹{renderSafeValue(customer.payment?.paidAmount)}
+                </div>
+              </div>
+
+              <div className="financial-box">
+                <div className="financial-label">Balance Due</div>
+                <div className="financial-amount">
+                  ₹{renderSafeValue(customer.payment?.pendingAmount)}
+                </div>
+              </div>
+            </div>
           </div>
+        )}
 
-          <div className="info-row">
-            <span className="info-label">Start Date / End Date</span>
-            <span className="info-value">
-              {formatDate(customer?.amcContract?.startDate)} /{" "}
-              {formatDate(customer?.amcContract?.endDate)}
-            </span>
+        {/* ── AMC DETAILS — REGULAR and AMC only (not SERVICE_ONLY) ──────── */}
+        {!isServiceOnly && (
+          <div className="detail-card amc-card">
+            <div className="section-title">🛡️ AMC Details</div>
+
+            <div className="info-row">
+              <span className="info-label">AMC Status</span>
+              <span className={getBadgeClass(amcStatus)}>
+                {getEnumLabel("amcStatus", amcStatus)}
+              </span>
+            </div>
+
+            <div className="info-row">
+              <span className="info-label">Start Date / End Date</span>
+              <span className="info-value">
+                {formatDate(customer?.amcContract?.startDate)} /{" "}
+                {formatDate(customer?.amcContract?.endDate)}
+              </span>
+            </div>
+
+            <div className="info-row">
+              <span className="info-label">Days Left</span>
+              <span className="info-value">{amcDaysLeft}</span>
+            </div>
+
+            <div className="info-row">
+              <span className="info-label">Last AMC Payment</span>
+              <span className="info-value">
+                {lastAmcPayment.amount ? `₹${lastAmcPayment.amount}` : "-"} /{" "}
+                {formatDate(lastAmcPayment.date)}
+              </span>
+            </div>
+
+            <div className="amc-action-panel">
+              <button className="btn btn-primary" onClick={openAmcModal}>
+                {amcStatus === "NOT STARTED" ? "Start AMC" : "Renew AMC"}
+              </button>
+
+              <button className="btn btn-outline" onClick={openAmcModal}>
+                Record AMC Payment
+              </button>
+
+              <button
+                className="btn btn-outline"
+                onClick={handleStopAmc}
+                disabled={amcStatus === "NOT STARTED" || amcLoading}
+              >
+                Stop AMC
+              </button>
+            </div>
           </div>
+        )}
 
-          <div className="info-row">
-            <span className="info-label">Days Left</span>
-            <span className="info-value">{amcDaysLeft}</span>
-          </div>
-
-          <div className="info-row">
-            <span className="info-label">Last AMC payment amount/date</span>
-            <span className="info-value">
-              {lastAmcPayment.amount ? `₹${lastAmcPayment.amount}` : "-"} /{" "}
-              {formatDate(lastAmcPayment.date)}
-            </span>
-          </div>
-
-          <div className="amc-action-panel">
-            <button
-              className="btn btn-primary"
-              onClick={() => openAmcModal("record")}
-            >
-              {amcStatus === "NOT STARTED" ? "Start AMC" : "Renew AMC"}
-            </button>
-
-            <button
-              className="btn btn-outline"
-              onClick={() => openAmcModal("record")}
-            >
-              Record AMC Payment
-            </button>
-
-            <button
-              className="btn btn-outline"
-              onClick={handleStopAmc}
-              disabled={amcStatus === "NOT STARTED"}
-            >
-              Stop AMC
-            </button>
-          </div>
-        </div>
-
-        {/* SERVICE HISTORY */}
+        {/* ── SERVICE HISTORY — all types ────────────────────────────────── */}
         <div className="detail-card">
           <div className="section-title">Service History</div>
 
           {historyLoading ? (
             <div className="history-empty">Loading...</div>
           ) : serviceHistory.length === 0 ? (
-            <div className="history-empty">No service history available.</div>
+            <div className="history-empty">No service history yet.</div>
           ) : (
             <div className="history-scroll">
               {serviceHistory.map((service) => (
@@ -488,7 +544,7 @@ const CustomerDetail = () => {
         </div>
       </div>
 
-      {/* SERVICE DETAIL MODAL */}
+      {/* ── SERVICE DETAIL MODAL ─────────────────────────────────────────── */}
       {selectedService && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
@@ -528,7 +584,7 @@ const CustomerDetail = () => {
 
                   <div>
                     <strong>Replaced Parts:</strong>
-                    {selectedService.replacedParts?.length === 0 ? (
+                    {!selectedService.replacedParts?.length ? (
                       <p>No parts replaced</p>
                     ) : (
                       selectedService.replacedParts.map((p, i) => (
@@ -549,7 +605,7 @@ const CustomerDetail = () => {
         </div>
       )}
 
-      {/* DELETE CUSTOMER MODAL */}
+      {/* ── DELETE CUSTOMER MODAL ────────────────────────────────────────── */}
       {showDeleteModal && (
         <div className="modal-overlay" onClick={closeDeleteModal}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
@@ -611,7 +667,7 @@ const CustomerDetail = () => {
         </div>
       )}
 
-      {/* AMC MODAL */}
+      {/* ── AMC PAYMENT MODAL ────────────────────────────────────────────── */}
       {showAmcModal && (
         <div className="modal-overlay" onClick={closeAmcModal}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
@@ -633,113 +689,50 @@ const CustomerDetail = () => {
                 </div>
               )}
 
-              <div style={{ marginBottom: 12 }}>
-                <label
-                  style={{ display: "block", marginBottom: 4, fontWeight: 500 }}
-                >
-                  Amount Paid (₹)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={amcForm.amount}
-                  onChange={(e) =>
-                    setAmcForm({ ...amcForm, amount: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    borderRadius: 6,
-                    border: "1px solid #ccc",
-                  }}
-                  placeholder="e.g. 2000"
-                />
-              </div>
-
-              <div style={{ marginBottom: 12 }}>
-                <label
-                  style={{ display: "block", marginBottom: 4, fontWeight: 500 }}
-                >
-                  AMC Start Date
-                </label>
-                <input
-                  type="date"
-                  value={amcForm.startDate}
-                  onChange={(e) =>
-                    setAmcForm({ ...amcForm, startDate: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    borderRadius: 6,
-                    border: "1px solid #ccc",
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 12 }}>
-                <label
-                  style={{ display: "block", marginBottom: 4, fontWeight: 500 }}
-                >
-                  AMC End Date
-                </label>
-                <input
-                  type="date"
-                  value={amcForm.endDate}
-                  onChange={(e) =>
-                    setAmcForm({ ...amcForm, endDate: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    borderRadius: 6,
-                    border: "1px solid #ccc",
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 12 }}>
-                <label
-                  style={{ display: "block", marginBottom: 4, fontWeight: 500 }}
-                >
-                  Payment Date
-                </label>
-                <input
-                  type="date"
-                  value={amcForm.paymentDate}
-                  onChange={(e) =>
-                    setAmcForm({ ...amcForm, paymentDate: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    borderRadius: 6,
-                    border: "1px solid #ccc",
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 16 }}>
-                <label
-                  style={{ display: "block", marginBottom: 4, fontWeight: 500 }}
-                >
-                  Notes (optional)
-                </label>
-                <input
-                  type="text"
-                  value={amcForm.notes}
-                  onChange={(e) =>
-                    setAmcForm({ ...amcForm, notes: e.target.value })
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    borderRadius: 6,
-                    border: "1px solid #ccc",
-                  }}
-                  placeholder="Any notes about this payment"
-                />
-              </div>
+              {[
+                {
+                  label: "Amount Paid (₹)",
+                  key: "amount",
+                  type: "number",
+                  placeholder: "e.g. 2000",
+                },
+                { label: "AMC Start Date", key: "startDate", type: "date" },
+                { label: "AMC End Date", key: "endDate", type: "date" },
+                { label: "Payment Date", key: "paymentDate", type: "date" },
+                {
+                  label: "Notes (optional)",
+                  key: "notes",
+                  type: "text",
+                  placeholder: "Any notes",
+                },
+              ].map(({ label, key, type, placeholder }) => (
+                <div key={key} style={{ marginBottom: 12 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      marginBottom: 4,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {label}
+                  </label>
+                  <input
+                    type={type}
+                    min={type === "number" ? "1" : undefined}
+                    value={amcForm[key]}
+                    placeholder={placeholder}
+                    onChange={(e) =>
+                      setAmcForm((prev) => ({ ...prev, [key]: e.target.value }))
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: 6,
+                      border: "1px solid #ccc",
+                    }}
+                  />
+                </div>
+              ))}
 
               <div className="delete-actions">
                 <button className="btn btn-outline" onClick={closeAmcModal}>
