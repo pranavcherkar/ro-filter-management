@@ -153,7 +153,12 @@ export const deleteInvoice = async (req, res) => {
         message: "Invoice customer mismatch or missing. Cannot delete safely.",
       });
     }
+    ///////
 
+    // If this is a SERVICE invoice and a linked service record still exists,
+    // cascade-delete the service too — same way deleteService already deletes
+    // its invoice. This makes the relationship symmetrical: you can approach
+    // from either direction.
     if (invoice.type === "SERVICE") {
       const linkedService = await Service.findOne({
         _id: invoice.referenceId,
@@ -162,14 +167,11 @@ export const deleteInvoice = async (req, res) => {
       });
 
       if (linkedService) {
-        return res.status(409).json({
-          success: false,
-          message:
-            "This invoice is linked to a service record. Delete the service first.",
-        });
+        await Service.deleteOne({ _id: linkedService._id });
       }
     }
 
+    //////
     if (
       ["FILTER_SALE", "AMC_PAYMENT"].includes(invoice.type) &&
       String(invoice.referenceId) !== String(invoice.customerId)
@@ -196,7 +198,8 @@ export const deleteInvoice = async (req, res) => {
       const isLatestPaymentRecord =
         new Date(customer.amcContract.lastPaymentDate).getTime() ===
           new Date(invoice.invoiceDate).getTime() &&
-        Number(customer.amcContract.lastPaymentAmount) === Number(invoice.paidAmount);
+        Number(customer.amcContract.lastPaymentAmount) ===
+          Number(invoice.paidAmount);
 
       if (isLatestPaymentRecord) {
         return res.status(409).json({

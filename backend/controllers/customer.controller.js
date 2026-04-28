@@ -630,7 +630,6 @@ export const deleteCustomer = async (req, res) => {
 
 export const getCustomers = async (req, res) => {
   try {
-    // console.log("getting all customers");
     const {
       search,
       status = "active",
@@ -638,26 +637,27 @@ export const getCustomers = async (req, res) => {
       serviceStatus,
       customerType,
       amcStatus,
+      page = 1,
+      limit = 20,
     } = req.query;
 
-    const query = {
-      userId: req.userId,
-    };
+    const currentPage = parseInt(page) || 1;
+    const perPage = Math.min(parseInt(limit) || 20, 100); // cap at 100
+    const skip = (currentPage - 1) * perPage;
 
-    // active / inactive filter
+    const query = { userId: req.userId };
+
+    // Status filter
     if (status === "active") query.isActive = true;
     if (status === "inactive") query.isActive = false;
 
-    // payment status filter
-    if (paymentStatus) {
-      query.filterPaymentStatus = paymentStatus;
-    }
+    // Payment status filter
+    if (paymentStatus) query.filterPaymentStatus = paymentStatus;
 
-    if (customerType) {
-      query.customerType = customerType;
-    }
+    // Customer type filter
+    if (customerType) query.customerType = customerType;
 
-    // search by name or phone
+    // Search by name or phone
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -665,9 +665,50 @@ export const getCustomers = async (req, res) => {
       ];
     }
 
-    const customers = await Customer.find(query).sort({ createdAt: -1 });
+    // serviceStatus filter — translated to DB-level date comparisons
+    // so pagination counts are accurate without loading all records
+    if (serviceStatus) {
+      const today = new Date();
+      const tenDaysFromNow = new Date(
+        today.getTime() + 10 * 24 * 60 * 60 * 1000,
+      );
+
+      if (serviceStatus === "OVERDUE") {
+        query.nextServiceDate = { $lt: today };
+      } else if (serviceStatus === "UPCOMING") {
+        query.nextServiceDate = { $gte: today, $lte: tenDaysFromNow };
+      } else if (serviceStatus === "OK") {
+        query.nextServiceDate = { $gt: tenDaysFromNow };
+      } else if (serviceStatus === "NONE") {
+        query.nextServiceDate = { $exists: false };
+      }
+    }
+
+    // amcStatus filter — translate to DB-level query
+    if (amcStatus) {
+      const today = new Date();
+      if (amcStatus === "ACTIVE") {
+        query["amcContract.status"] = "ACTIVE";
+        query["amcContract.endDate"] = { $gte: today };
+      } else if (amcStatus === "EXPIRED") {
+        query["amcContract.endDate"] = { $lt: today };
+      } else if (amcStatus === "CANCELLED") {
+        query["amcContract.status"] = "CANCELLED";
+      }
+    }
+
+    // Get total count first (needed for pagination metadata)
+    const totalItems = await Customer.countDocuments(query);
+    const totalPages = Math.ceil(totalItems / perPage);
+
+    // Paginated DB query
+    const customers = await Customer.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(perPage);
 
     const today = new Date();
+    const tenDaysFromNow = new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000);
 
     const formattedCustomers = customers.map((c) => {
       let serviceStatusComputed = "NONE";
@@ -677,11 +718,11 @@ export const getCustomers = async (req, res) => {
       if (c.nextServiceDate) {
         const diff =
           (new Date(c.nextServiceDate) - today) / (1000 * 60 * 60 * 24);
-
         daysRemaining = Math.ceil(diff);
 
         if (daysRemaining < 0) serviceStatusComputed = "OVERDUE";
-        else if (daysRemaining <= 10) serviceStatusComputed = "UPCOMING";
+        else if (new Date(c.nextServiceDate) <= tenDaysFromNow)
+          serviceStatusComputed = "UPCOMING";
         else serviceStatusComputed = "OK";
       }
 
@@ -696,35 +737,25 @@ export const getCustomers = async (req, res) => {
         amcContract: c.amcContract
           ? { ...c.amcContract.toObject(), status: amcStatusComputed }
           : null,
-
         filterPaymentStatus: c.filterPaymentStatus,
         filterPrice: c.filterPrice,
         filterPaidAmount: c.filterPaidAmount,
-
         nextServiceDate: c.nextServiceDate,
         serviceStatus: serviceStatusComputed,
         daysRemaining,
-
         location: c.location,
         isActive: c.isActive,
       };
     });
 
-    // optional serviceStatus filter (after computation)
-    let finalCustomers = serviceStatus
-      ? formattedCustomers.filter((c) => c.serviceStatus === serviceStatus)
-      : formattedCustomers;
-
-    if (amcStatus) {
-      finalCustomers = finalCustomers.filter(
-        (c) => c.amcContract?.status === amcStatus,
-      );
-    }
-
     res.status(200).json({
       success: true,
-      count: finalCustomers.length,
-      customers: finalCustomers,
+      totalItems,
+      totalPages,
+      currentPage,
+      perPage,
+      count: formattedCustomers.length,
+      customers: formattedCustomers,
     });
   } catch (error) {
     console.error(error);
