@@ -1,3 +1,4 @@
+/* ── unchanged from original ── */
 .navbar {
   display: flex;
   justify-content: center;
@@ -72,4 +73,76 @@
 .nav-item.active {
   color: white;
   transform: scale(1.1);
+}
+
+/* ── Profile dropdown wrapper ── */
+.nav-profile-wrapper {
+  position: relative;
+}
+
+/* ── Dropdown menu ── */
+.nav-dropdown {
+  position: absolute;
+  bottom: calc(100% + 10px); /* opens upward on mobile */
+  right: 0;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  min-width: 160px;
+  z-index: 1001;
+  animation: dropFadeIn 0.15s ease;
+}
+
+/* On desktop the navbar is on top, so dropdown opens downward */
+@media (min-width: 768px) {
+  .nav-dropdown {
+    top: calc(100% + 10px);
+    bottom: unset;
+  }
+}
+
+@keyframes dropFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.nav-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.nav-dropdown-item:hover {
+  background: #f1f5f9;
+}
+
+.nav-dropdown-item svg {
+  font-size: 17px;
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+/* Logout gets a top divider and red hover */
+.nav-dropdown-logout {
+  border-top: 1px solid #e2e8f0;
+  color: #dc2626;
+}
+
+.nav-dropdown-logout svg {
+  color: #dc2626;
+}
+
+.nav-dropdown-logout:hover {
+  background: #fff1f1;
 }

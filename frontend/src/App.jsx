@@ -12,6 +12,7 @@ import ServicesList from "./pages/Services/ServicesList";
 import InvoicesList from "./pages/Invoices/InvoicesList";
 import UpcomingOverdueServices from "./pages/Customers/UpcomingOverdueServices";
 import InventoryParts from "./pages/Customers/InventoryParts";
+import Profile from "./pages/Profile";
 import Layout from "./components/Layout";
 
 export default function App() {
@@ -44,6 +45,7 @@ export default function App() {
               element={<UpcomingOverdueServices />}
             />
             <Route path="/inventory" element={<InventoryParts />} />
+            <Route path="/profile" element={<Profile />} />
           </Route>
         </Routes>
       </AuthProvider>
