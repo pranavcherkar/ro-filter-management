@@ -33,18 +33,18 @@ export const login = async (req, res) => {
       expiresIn: "7d",
     });
 
-    // res.cookie("token", token, {
-    //   httpOnly: true,
-    //   secure: true, // true in production (https)
-    //   sameSite: "none",
-    //   maxAge: 7 * 24 * 60 * 60 * 1000,
-    // });
     res.cookie("token", token, {
       httpOnly: true,
-      secure: false,
-      sameSite: "lax",
+      secure: true, // true in production (https)
+      sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+    // res.cookie("token", token, {
+    //   httpOnly: true,
+    //   secure: false,
+    //   sameSite: "lax",
+    //   maxAge: 7 * 24 * 60 * 60 * 1000,
+    // });
     res.status(200).json({
       message: "Login successful",
       success: true,
