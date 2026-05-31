@@ -146,7 +146,7 @@ const AmcSection = ({
             {amcStatus === "NOT STARTED" ? "Start AMC" : "Renew AMC"}
           </button>
 
-          {totalFee > 0 && paidSoFar < totalFee && (
+          {customer?.amcContract && (!totalFee || paidSoFar < totalFee) && (
             <button
               className="btn btn-outline"
               onClick={() => setShowAmcUpdateModal(true)}

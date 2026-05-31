@@ -345,11 +345,11 @@ export const recordAmcPayment = async (req, res) => {
     const paidNow = Number(amount) || 0;
     const totalFee = Number(totalAmcAmount) || paidNow;
 
-    if (paidNow <= 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "amount must be positive" });
-    }
+    // if (paidNow <= 0) {
+    //   return res
+    //     .status(400)
+    //     .json({ success: false, message: "amount must be positive" });
+    // }
 
     if (!startDate || !endDate) {
       return res.status(400).json({
@@ -418,19 +418,26 @@ export const recordAmcPayment = async (req, res) => {
 
     // Map paymentStatus: PENDING → UNPAID (invoice schema only knows PAID/PARTIAL/UNPAID)
     const invoicePaymentStatus =
-      paidNow >= totalFee ? "PAID" : paidNow > 0 ? "PARTIAL" : "UNPAID";
+      totalFee > 0 && paidNow >= totalFee
+        ? "PAID"
+        : paidNow > 0
+          ? "PARTIAL"
+          : "UNPAID";
 
-    const invoice = await Invoice.create({
-      userId: req.userId,
-      customerId: customer._id,
-      type: "AMC_PAYMENT",
-      referenceId: customer._id,
-      invoiceDate: normalizedPaymentDate,
-      items: [{ name: "AMC Payment", price: totalFee }],
-      totalAmount: totalFee,
-      paidAmount: paidNow,
-      paymentStatus: invoicePaymentStatus,
-    });
+    const invoice =
+      paidNow > 0 || totalFee > 0
+        ? await Invoice.create({
+            userId: req.userId,
+            customerId: customer._id,
+            type: "AMC_PAYMENT",
+            referenceId: customer._id,
+            invoiceDate: normalizedPaymentDate,
+            items: [{ name: "AMC Payment", price: totalFee }],
+            totalAmount: totalFee,
+            paidAmount: paidNow,
+            paymentStatus: invoicePaymentStatus,
+          })
+        : null;
 
     return res.status(201).json({
       success: true,

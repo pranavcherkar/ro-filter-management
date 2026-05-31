@@ -188,10 +188,6 @@ const CustomerDetail = () => {
 
   const handleAmcPayment = async () => {
     setAmcError("");
-    if (!amcForm.amount || Number(amcForm.amount) <= 0) {
-      setAmcError("Please enter a valid amount.");
-      return;
-    }
     if (!amcForm.startDate || !amcForm.endDate) {
       setAmcError("Start date and end date are required.");
       return;
