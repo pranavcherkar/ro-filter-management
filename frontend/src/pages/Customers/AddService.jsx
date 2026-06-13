@@ -58,7 +58,7 @@ const AddService = () => {
   const [chargePaymentStatus, setChargePaymentStatus] = useState("PAID");
   const [chargePaidAmount, setChargePaidAmount] = useState("");
   const [parts, setParts] = useState([
-    { partName: "", price: "", showDropdown: false },
+    { partName: "", price: "", quantity: 1, showDropdown: false },
   ]);
 
   const [loading, setLoading] = useState(false);
@@ -78,7 +78,10 @@ const AddService = () => {
   };
 
   const addPart = () => {
-    setParts([...parts, { partName: "", price: "", showDropdown: false }]);
+    setParts([
+      ...parts,
+      { partName: "", price: "", quantity: 1, showDropdown: false },
+    ]);
   };
 
   const handleSubmit = async (e) => {
@@ -103,6 +106,7 @@ const AddService = () => {
           .map((p) => ({
             partName: p.partName,
             price: Number(p.price) || 0,
+            quantity: Number(p.quantity) || 1,
           })),
       });
 
@@ -234,10 +238,21 @@ const AddService = () => {
                   <input
                     className="service-input"
                     type="number"
-                    placeholder="Price"
+                    placeholder="Rate (₹)"
                     value={part.price}
                     onChange={(e) =>
                       handlePartChange(index, "price", e.target.value)
+                    }
+                  />
+                  <input
+                    className="service-input"
+                    type="number"
+                    placeholder="Qty"
+                    value={part.quantity}
+                    min="1"
+                    style={{ maxWidth: 70 }}
+                    onChange={(e) =>
+                      handlePartChange(index, "quantity", e.target.value)
                     }
                   />
                 </div>

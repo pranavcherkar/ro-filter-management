@@ -67,7 +67,8 @@ const InvoicesList = () => {
 
   const formatDate = (date) => new Date(date).toLocaleDateString("en-IN");
   const formatMoney = (value) => Number(value || 0).toLocaleString("en-IN");
-  const invoiceTypeLabel = (invoiceType) => getEnumLabel("invoiceType", invoiceType);
+  const invoiceTypeLabel = (invoiceType) =>
+    getEnumLabel("invoiceType", invoiceType);
 
   const generateInvoicePDF = (inv) => {
     const doc = new jsPDF();
@@ -127,25 +128,33 @@ const InvoicesList = () => {
       doc.text(
         `AMC Plan Period: ${formatDate(inv.customer.amcContract.startDate)} - ${formatDate(inv.customer.amcContract.endDate)}`,
         20,
-        y
+        y,
       );
       y += 6;
       doc.text(
         `AMC Renewal Date: ${formatDate(inv.customer.amcContract.endDate)}`,
         20,
-        y
+        y,
       );
     }
 
-    const rows = inv.items.map((item, index) => [
-      index + 1,
-      item.name,
-      formatMoney(item.price),
-    ]);
+    const rows = inv.items.map((item, index) => {
+      const qty = item.quantity || 1;
+      const rate = item.rate || item.price || 0;
+      const amount = item.price || qty * rate;
+
+      return [
+        index + 1,
+        item.name,
+        qty,
+        formatMoney(rate),
+        formatMoney(amount),
+      ];
+    });
 
     autoTable(doc, {
       startY: y + 10,
-      head: [["#", "Description", "Amount (Rs)"]],
+      head: [["#", "Description", "Qty", "Rate (Rs)", "Amount (Rs)"]],
       body: rows,
       theme: "grid",
     });
@@ -259,7 +268,9 @@ const InvoicesList = () => {
                     {formatDate(inv.invoiceDate)}
                   </div>
                 </div>
-                <span className="status-badge">{getEnumLabel("paymentStatus", inv.paymentStatus)}</span>
+                <span className="status-badge">
+                  {getEnumLabel("paymentStatus", inv.paymentStatus)}
+                </span>
               </div>
 
               <div className="invoice-grid">
@@ -294,7 +305,9 @@ const InvoicesList = () => {
                   onClick={() => handleDeleteInvoice(inv)}
                   disabled={deletingInvoiceId === inv.id}
                 >
-                  {deletingInvoiceId === inv.id ? "Deleting..." : "Delete Invoice"}
+                  {deletingInvoiceId === inv.id
+                    ? "Deleting..."
+                    : "Delete Invoice"}
                 </button>
               </div>
             </div>
