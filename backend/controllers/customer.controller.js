@@ -224,7 +224,14 @@ export const createCustomer = async (req, res) => {
         type: "FILTER_SALE",
         referenceId: customer._id,
         invoiceDate: installDateObj,
-        items: [{ name: `RO Filter (${roModel})`, price }],
+        items: [
+          {
+            name: `RO Filter (${roModel})`,
+            quantity: 1,
+            rate: price,
+            price,
+          },
+        ],
         totalAmount: price,
         paidAmount: paid,
         paymentStatus,
@@ -244,7 +251,14 @@ export const createCustomer = async (req, res) => {
         type: "AMC_PAYMENT",
         referenceId: customer._id,
         invoiceDate: new Date(),
-        items: [{ name: "AMC Registration Payment", price: amcPaid }],
+        items: [
+          {
+            name: "AMC Registration Payment",
+            quantity: 1,
+            rate: amcPaid,
+            price: amcPaid,
+          },
+        ],
         totalAmount: amcPaid,
         paidAmount: amcPaymentStatus === "PAID" ? amcPaid : 0,
         paymentStatus: invoicePaymentStatus,
@@ -432,7 +446,14 @@ export const recordAmcPayment = async (req, res) => {
             type: "AMC_PAYMENT",
             referenceId: customer._id,
             invoiceDate: normalizedPaymentDate,
-            items: [{ name: "AMC Payment", price: totalFee }],
+            items: [
+              {
+                name: "AMC Payment",
+                quantity: 1,
+                rate: totalFee,
+                price: totalFee,
+              },
+            ],
             totalAmount: totalFee,
             paidAmount: paidNow,
             paymentStatus: invoicePaymentStatus,

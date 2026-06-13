@@ -6,12 +6,23 @@ const invoiceItemSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
+    quantity: {
+      type: Number,
+      default: 1,
+    },
+
+    rate: {
+      type: Number,
+      required: true,
+    },
+
     price: {
       type: Number,
       required: true,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const invoiceSchema = new mongoose.Schema(
@@ -36,7 +47,7 @@ const invoiceSchema = new mongoose.Schema(
 
     referenceId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true, // customerId or serviceId
+      required: true,
     },
 
     items: {
@@ -65,7 +76,7 @@ const invoiceSchema = new mongoose.Schema(
       default: Date.now,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export const Invoice = mongoose.model("Invoice", invoiceSchema);

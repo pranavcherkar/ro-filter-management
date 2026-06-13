@@ -140,7 +140,7 @@ export const createService = async (req, res) => {
 
     // Calculate amounts
     const totalPartsAmount = replacedParts.reduce(
-      (sum, p) => sum + (p.price || 0),
+      (sum, p) => sum + (p.price || 0) * (p.quantity || 1),
       0,
     );
     const totalServiceAmount = totalPartsAmount + serviceCharge;
@@ -214,11 +214,26 @@ export const createService = async (req, res) => {
     // Create SERVICE invoice only when there is money involved
     if (totalServiceAmount > 0) {
       const invoiceItems = [];
+
       replacedParts.forEach((p) => {
-        invoiceItems.push({ name: p.partName, price: p.price || 0 });
+        const qty = p.quantity || 1;
+        const rate = p.price || 0;
+
+        invoiceItems.push({
+          name: p.partName,
+          quantity: qty,
+          rate,
+          price: qty * rate,
+        });
       });
+
       if (serviceCharge > 0) {
-        invoiceItems.push({ name: "Service Charge", price: serviceCharge });
+        invoiceItems.push({
+          name: "Service Charge",
+          quantity: 1,
+          rate: serviceCharge,
+          price: serviceCharge,
+        });
       }
 
       await Invoice.create({
