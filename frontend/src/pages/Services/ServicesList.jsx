@@ -256,7 +256,9 @@ const ServicesList = () => {
 
                   <div className="modal-section">
                     <strong>Service Type</strong>
-                    <p>{getEnumLabel("serviceType", selectedService.serviceType)}</p>
+                    <p>
+                      {getEnumLabel("serviceType", selectedService.serviceType)}
+                    </p>
                   </div>
 
                   <div className="modal-section">
@@ -271,7 +273,9 @@ const ServicesList = () => {
                     ) : (
                       selectedService.replacedParts.map((part, index) => (
                         <p key={index}>
-                          {part.partName} : ₹{part.price}
+                          {part.partName} × {part.quantity || 1} — ₹{part.price}{" "}
+                          each — Total: ₹
+                          {(part.price || 0) * (part.quantity || 1)}
                         </p>
                       ))
                     )}

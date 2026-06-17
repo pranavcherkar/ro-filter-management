@@ -639,23 +639,23 @@ export const deleteCustomer = async (req, res) => {
         customerId: customer._id,
       }),
     ]);
-
-    if (customer.roModel && customer.customerType !== "SERVICE_ONLY") {
-      await ROModelInventory.findOneAndUpdate(
-        {
-          userId: req.userId,
-          modelName: customer.roModel,
-        },
-        {
-          $inc: { quantity: 1 },
-          $setOnInsert: { isActive: true },
-        },
-        {
-          upsert: true,
-          new: true,
-        },
-      );
-    }
+    // major issue causing inventory problem this part was restoring a data about deleted customer meaning if i delete a customer it restored the ro model in the inventory
+    // if (customer.roModel && customer.customerType !== "SERVICE_ONLY") {
+    //   await ROModelInventory.findOneAndUpdate(
+    //     {
+    //       userId: req.userId,
+    //       modelName: customer.roModel,
+    //     },
+    //     {
+    //       $inc: { quantity: 1 },
+    //       $setOnInsert: { isActive: true },
+    //     },
+    //     {
+    //       upsert: true,
+    //       new: true,
+    //     },
+    //   );
+    // }
 
     await Customer.deleteOne({ _id: customer._id });
 

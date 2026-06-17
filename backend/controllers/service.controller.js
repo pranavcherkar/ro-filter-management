@@ -178,7 +178,7 @@ export const createService = async (req, res) => {
         name: part.partName,
       });
       if (inventoryItem) {
-        inventoryItem.quantity -= 1;
+        inventoryItem.quantity -= part.quantity || 1;
         await inventoryItem.save();
       }
     }
