@@ -4,7 +4,10 @@ export const getROModels = async (req, res) => {
   try {
     const userId = req.userId;
 
-    const models = await ROModelInventory.find({ userId }).sort({
+    // showAll=true used only in admin/inventory page to show discontinued ones too
+    const { showAll } = req.query;
+    const query = showAll === "true" ? { userId } : { userId, isActive: true };
+    const models = await ROModelInventory.find(query).sort({
       modelName: 1,
     });
 
@@ -107,6 +110,40 @@ export const createROModel = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to create RO model",
+    });
+  }
+};
+
+export const deleteROModel = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { id } = req.params;
+
+    const model = await ROModelInventory.findOne({ _id: id, userId });
+
+    if (!model) {
+      return res.status(404).json({
+        success: false,
+        message: "RO model not found",
+      });
+    }
+
+    // Soft delete — set isActive: false
+    // Hard delete is intentionally not offered because:
+    // 1. Existing customers still reference this modelName as a string
+    // 2. Analytics and service history are unaffected (they use strings, not FK)
+    model.isActive = false;
+    await model.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `${model.modelName} marked as discontinued`,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to discontinue RO model",
     });
   }
 };

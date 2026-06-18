@@ -9,6 +9,7 @@ import {
   createROModel,
   getROModels,
   updateROModelQuantity,
+  deleteROModel,
 } from "../controllers/roInventory.controller.js";
 
 const router = express.Router();
@@ -20,4 +21,5 @@ router.patch("/parts/:id", isAuthenticated, updatePartQuantity);
 router.post("/ro-models", isAuthenticated, createROModel);
 router.get("/ro-models", isAuthenticated, getROModels);
 router.patch("/ro-models/:id", isAuthenticated, updateROModelQuantity);
+router.delete("/ro-models/:id", isAuthenticated, deleteROModel);
 export default router;

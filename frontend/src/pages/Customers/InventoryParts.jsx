@@ -11,6 +11,7 @@ const InventoryParts = () => {
   const [error, setError] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [showDiscontinued, setShowDiscontinued] = useState(false);
   const [newName, setNewName] = useState("");
   const [newQuantity, setNewQuantity] = useState(0);
 
@@ -21,14 +22,17 @@ const InventoryParts = () => {
     loadInventory();
   }, [type]);
 
-  const loadInventory = async () => {
+  const loadInventory = async (forceShowAll = null) => {
     try {
       setLoading(true);
       const endpoint =
         type === "parts" ? "/api/inventory/parts" : "/api/inventory/ro-models";
-      //  res = await api.get("/api/inventory/ro-models");
 
-      const res = await api.get(endpoint);
+      const shouldShowAll =
+        forceShowAll !== null ? forceShowAll : showDiscontinued;
+      const res = await api.get(endpoint, {
+        params: type === "ro" && shouldShowAll ? { showAll: "true" } : {},
+      });
       const data = type === "parts" ? res.items || [] : res.models || [];
 
       setItems(data);
@@ -91,6 +95,21 @@ const InventoryParts = () => {
     } catch (err) {
       alert(err?.response?.data?.message || "Update failed");
       loadInventory();
+    }
+  };
+
+  const handleDiscontinue = async (id, modelName) => {
+    if (
+      !window.confirm(
+        `Mark "${modelName}" as discontinued? It will be hidden from new customer registrations.`,
+      )
+    )
+      return;
+    try {
+      await api.delete(`/api/inventory/ro-models/${id}`);
+      loadInventory();
+    } catch (err) {
+      alert(err?.message || "Failed to discontinue model");
     }
   };
 
@@ -201,6 +220,33 @@ const InventoryParts = () => {
           </div>
         </div>
 
+        {type === "ro" && (
+          <div style={{ textAlign: "right", marginBottom: 8 }}>
+            <label
+              style={{
+                fontSize: 13,
+                color: "#64748b",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                justifyContent: "flex-end",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={showDiscontinued}
+                onChange={(e) => {
+                  const val = e.target.checked;
+                  setShowDiscontinued(val);
+                  loadInventory(val);
+                }}
+              />
+              Show discontinued models
+            </label>
+          </div>
+        )}
+
         <div className="inv-list-grid">
           {displayedItems.map((item) => (
             <div
@@ -260,6 +306,26 @@ const InventoryParts = () => {
                     Update
                   </button>
                 </div>
+
+                {type === "ro" && item.isActive && (
+                  <button
+                    onClick={() => handleDiscontinue(item._id, item.modelName)}
+                    style={{
+                      marginTop: 8,
+                      width: "100%",
+                      padding: "6px 0",
+                      background: "transparent",
+                      border: "1px solid #fca5a5",
+                      color: "#dc2626",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Discontinue
+                  </button>
+                )}
               </div>
             </div>
           ))}
