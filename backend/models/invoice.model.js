@@ -6,17 +6,6 @@ const invoiceItemSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-
-    quantity: {
-      type: Number,
-      default: 1,
-    },
-
-    rate: {
-      type: Number,
-      default: 0,
-    },
-
     price: {
       type: Number,
       required: true,
@@ -32,45 +21,37 @@ const invoiceSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-
     customerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Customer",
       required: true,
     },
-
     type: {
       type: String,
       enum: ["FILTER_SALE", "SERVICE", "AMC_PAYMENT"],
       required: true,
     },
-
     referenceId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
     },
-
     items: {
       type: [invoiceItemSchema],
       default: [],
     },
-
     totalAmount: {
       type: Number,
       required: true,
     },
-
     paidAmount: {
       type: Number,
       default: 0,
     },
-
     paymentStatus: {
       type: String,
-      enum: ["PAID", "PARTIAL", "UNPAID"],
+      enum: ["PAID", "PARTIAL", "UNPAID", "PENDING"],
       default: "UNPAID",
     },
-
     invoiceDate: {
       type: Date,
       default: Date.now,

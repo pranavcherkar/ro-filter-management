@@ -138,23 +138,15 @@ const InvoicesList = () => {
       );
     }
 
-    const rows = inv.items.map((item, index) => {
-      const qty = item.quantity || 1;
-      const rate = item.rate || item.price || 0;
-      const amount = item.price || qty * rate;
-
-      return [
-        index + 1,
-        item.name,
-        qty,
-        formatMoney(rate),
-        formatMoney(amount),
-      ];
-    });
+    const rows = inv.items.map((item, index) => [
+      index + 1,
+      item.name,
+      formatMoney(item.price),
+    ]);
 
     autoTable(doc, {
       startY: y + 10,
-      head: [["#", "Description", "Qty", "Rate (Rs)", "Amount (Rs)"]],
+      head: [["#", "Description", "Amount (Rs)"]],
       body: rows,
       theme: "grid",
     });

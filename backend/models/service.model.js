@@ -10,10 +10,6 @@ const replacedPartSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    quantity: {
-      type: Number,
-      default: 1,
-    },
   },
   { _id: false },
 );

@@ -99,8 +99,7 @@ const ServiceSection = ({
                     ) : (
                       selectedService.replacedParts.map((p, i) => (
                         <p key={i}>
-                          {p.partName} × {p.quantity || 1} — ₹{p.price} each —
-                          Total: ₹{(p.price || 0) * (p.quantity || 1)}
+                          {p.partName} – ₹{p.price}
                         </p>
                       ))
                     )}

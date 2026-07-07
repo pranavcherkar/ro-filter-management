@@ -140,7 +140,7 @@ export const createService = async (req, res) => {
 
     // Calculate amounts
     const totalPartsAmount = replacedParts.reduce(
-      (sum, p) => sum + (p.price || 0) * (p.quantity || 1),
+      (sum, p) => sum + (p.price || 0),
       0,
     );
     const totalServiceAmount = totalPartsAmount + serviceCharge;
