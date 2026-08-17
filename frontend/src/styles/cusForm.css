@@ -175,3 +175,84 @@
 .autocomplete-item:hover {
   background: #f0f9ff;
 }
+
+/* ── Invoice Update Payment ──────────────────────────────────────────────── */
+.inv-pay-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.inv-pay-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 10px;
+  text-align: center;
+}
+
+.inv-pay-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 5px;
+}
+
+.inv-pay-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.inv-pay-items {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+}
+
+.inv-pay-items-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.inv-pay-item-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #334155;
+  padding: 5px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.inv-pay-item-row:last-child { border-bottom: none; }
+
+.inv-pay-success {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #166534;
+  font-weight: 500;
+  margin-bottom: 14px;
+}
+
+.inv-pay-error {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #991b1b;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}

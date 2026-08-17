@@ -272,25 +272,40 @@ const Dashboard = () => {
           </div>
         </section>
 
-        {/* Analytics shortcut */}
-        <div style={{ textAlign: "center", marginTop: 8, marginBottom: 8 }}>
+        {/* Quick actions */}
+        <div style={{ display: "flex", gap: 10, marginTop: 8, marginBottom: 8 }}>
+          <button
+            onClick={() => navigate("/parts-sale")}
+            style={{
+              flex: 1,
+              background: "white",
+              color: "#6173c7",
+              border: "2px solid #6173c7",
+              borderRadius: 12,
+              padding: "12px 16px",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Sell Parts
+          </button>
           <button
             onClick={() => navigate("/analytics")}
             style={{
+              flex: 2,
               background: "linear-gradient(135deg, #6173c7, #764ba2)",
               color: "white",
               border: "none",
               borderRadius: 12,
-              padding: "12px 32px",
-              fontSize: 15,
+              padding: "12px 16px",
+              fontSize: 14,
               fontWeight: 600,
               cursor: "pointer",
-              width: "100%",
-              maxWidth: 400,
               boxShadow: "0 4px 14px rgba(97,115,199,0.35)",
             }}
           >
-            📊 View Full Analytics
+            View Analytics
           </button>
         </div>
       </div>

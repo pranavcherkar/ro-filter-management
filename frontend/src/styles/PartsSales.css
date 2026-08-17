@@ -1,0 +1,522 @@
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+.ps-page {
+  min-height: 100vh;
+  background: #f0f4ff;
+  padding-bottom: 90px;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.ps-header {
+  background: linear-gradient(135deg, #6173c7, #764ba2);
+  color: white;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+}
+
+.ps-back {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ps-header-title {
+  font-size: 17px;
+  font-weight: 700;
+  flex: 1;
+}
+
+.ps-cart-btn {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ps-cart-badge {
+  background: white;
+  color: #6173c7;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+.ps-body {
+  padding: 14px 14px 0;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* ── Section title ───────────────────────────────────────────────────────── */
+.ps-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 14px 0 8px 2px;
+}
+
+/* ── Card base ───────────────────────────────────────────────────────────── */
+.ps-customer-card {
+  background: white;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 2px 12px rgba(97,115,199,0.1);
+  margin-bottom: 12px;
+}
+
+/* ── Mode tabs ───────────────────────────────────────────────────────────── */
+.ps-mode-tabs {
+  display: flex;
+  gap: 0;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 12px;
+}
+
+.ps-mode-tab {
+  flex: 1;
+  padding: 7px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ps-mode-tab.active {
+  background: white;
+  color: #6173c7;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+/* ── Inputs ──────────────────────────────────────────────────────────────── */
+.ps-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1e293b;
+  outline: none;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.ps-input:focus { border-color: #6173c7; }
+.ps-input::placeholder { color: #b0bec5; }
+
+.ps-price-input {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.ps-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  margin-bottom: 5px;
+}
+
+/* ── Customer search dropdown ────────────────────────────────────────────── */
+.ps-customer-search { position: relative; }
+
+.ps-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: white;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  z-index: 50;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.ps-dropdown-item {
+  padding: 10px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+}
+
+.ps-dropdown-item:last-child { border-bottom: none; }
+.ps-dropdown-item:hover { background: #f8fafc; }
+
+.ps-dropdown-meta { color: #64748b; font-weight: 400; }
+
+.ps-selected-customer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f0f2ff;
+  border: 1.5px solid #6173c7;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.ps-sel-name  { font-size: 14px; font-weight: 600; color: #1e293b; }
+.ps-sel-meta  { font-size: 12px; color: #64748b; margin-top: 2px; }
+.ps-clear-btn {
+  background: none; border: none; color: #94a3b8;
+  font-size: 16px; cursor: pointer; margin-left: auto; flex-shrink: 0;
+}
+
+/* ── Search bar ──────────────────────────────────────────────────────────── */
+.ps-search-wrap {
+  background: white;
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 2px 12px rgba(97,115,199,0.1);
+  margin-bottom: 4px;
+}
+
+.ps-search-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+}
+
+.ps-search-input:focus { border-color: #6173c7; }
+
+/* ── Parts grid ──────────────────────────────────────────────────────────── */
+.ps-parts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ps-part-card {
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(97,115,199,0.08);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ps-part-card:active { transform: scale(0.97); }
+.ps-part-card.in-cart { border-color: #6173c7; background: #f0f2ff; }
+
+.ps-part-name  { font-size: 13px; font-weight: 600; color: #1e293b; line-height: 1.3; }
+.ps-part-stock { font-size: 11px; color: #64748b; }
+.ps-part-stock.low { color: #ef4444; font-weight: 600; }
+
+.ps-add-btn {
+  margin-top: 4px;
+  padding: 6px 0;
+  border-radius: 6px;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #eff0ff;
+  color: #6173c7;
+  transition: all 0.15s;
+}
+
+.ps-add-btn.added { background: #6173c7; color: white; }
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.ps-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.ps-modal-sheet {
+  background: white;
+  border-radius: 20px 20px 0 0;
+  padding: 20px 18px 36px;
+  width: 100%;
+  max-width: 500px;
+  animation: psSlideUp 0.22s ease;
+}
+
+@keyframes psSlideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.ps-modal-handle {
+  width: 40px; height: 4px;
+  background: #e2e8f0;
+  border-radius: 2px;
+  margin: 0 auto 18px;
+}
+
+.ps-modal-title { font-size: 17px; font-weight: 700; margin-bottom: 2px; color: #1e293b; }
+.ps-modal-sub   { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+
+.ps-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 10px 0 12px;
+}
+
+.ps-qty-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 2px solid #6173c7;
+  background: white;
+  color: #6173c7;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ps-qty-display { font-size: 22px; font-weight: 700; min-width: 28px; text-align: center; }
+.ps-qty-unit    { font-size: 13px; color: #64748b; }
+
+.ps-total-preview {
+  background: #f0f2ff;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+.ps-total-preview strong { color: #6173c7; font-size: 16px; }
+
+.ps-modal-actions { display: flex; gap: 10px; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.ps-btn {
+  flex: 1;
+  padding: 13px;
+  border-radius: 10px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.ps-btn:active   { opacity: 0.85; }
+.ps-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.ps-btn-primary  { background: linear-gradient(135deg, #6173c7, #764ba2); color: white; }
+.ps-btn-outline  { background: white; color: #64748b; border: 1.5px solid #e2e8f0; }
+
+/* ── Cart items ──────────────────────────────────────────────────────────── */
+.ps-cart-item {
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 8px rgba(97,115,199,0.08);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ps-cart-info   { flex: 1; }
+.ps-cart-name   { font-size: 14px; font-weight: 600; }
+.ps-cart-meta   { font-size: 12px; color: #64748b; margin-top: 2px; }
+.ps-cart-total  { font-size: 14px; font-weight: 700; color: #6173c7; flex-shrink: 0; }
+.ps-remove-btn  {
+  background: #fff0f0; border: none; color: #ef4444;
+  width: 30px; height: 30px; border-radius: 50%;
+  font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Summary ─────────────────────────────────────────────────────────────── */
+.ps-summary-box {
+  background: white;
+  border-radius: 10px;
+  padding: 14px;
+  margin: 10px 0;
+  box-shadow: 0 2px 8px rgba(97,115,199,0.08);
+}
+
+.ps-summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #64748b;
+  padding: 4px 0;
+}
+
+.ps-summary-total {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 6px;
+  padding-top: 10px;
+}
+
+/* ── Payment status ──────────────────────────────────────────────────────── */
+.ps-pay-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ps-pay-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+  background: white;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ps-pay-paid    { border-color: #22c55e; background: #f0fdf4; color: #16a34a; }
+.ps-pay-partial { border-color: #f59e0b; background: #fffbeb; color: #92400e; }
+.ps-pay-pending { border-color: #ef4444; background: #fff0f0; color: #dc2626; }
+
+/* ── Error ───────────────────────────────────────────────────────────────── */
+.ps-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+/* ── Sticky bottom ───────────────────────────────────────────────────────── */
+.ps-sticky-bottom {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: white;
+  padding: 12px 16px;
+  box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+  z-index: 50;
+}
+
+.ps-sticky-bottom .ps-btn { width: 100%; font-size: 15px; padding: 14px; }
+
+/* ── Success ─────────────────────────────────────────────────────────────── */
+.ps-success-card {
+  background: white;
+  border-radius: 16px;
+  padding: 28px 20px;
+  text-align: center;
+  box-shadow: 0 2px 12px rgba(97,115,199,0.1);
+  margin-top: 30px;
+}
+
+.ps-success-icon {
+  width: 68px; height: 68px;
+  background: #dcfce7;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: #16a34a;
+  margin: 0 auto 14px;
+  font-weight: 700;
+}
+
+.ps-success-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.ps-success-sub   { font-size: 14px; color: #64748b; margin-bottom: 20px; }
+
+.ps-invoice-preview {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 14px;
+  text-align: left;
+  margin-bottom: 18px;
+  border: 1px solid #e2e8f0;
+}
+
+.ps-preview-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 5px 0;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.ps-preview-row:last-child { border-bottom: none; }
+
+.ps-preview-total {
+  font-weight: 700;
+  color: #6173c7;
+  font-size: 14px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (min-width: 480px) {
+  .ps-parts-grid { grid-template-columns: repeat(3, 1fr); }
+  .ps-body { max-width: 580px; }
+  .ps-sticky-bottom { max-width: 600px; left: 50%; transform: translateX(-50%); }
+  .ps-modal-sheet { padding-bottom: 40px; }
+}
+
+/* Desktop: main navbar is at top so ps-header needs to sit below it */
+@media (min-width: 768px) {
+  .ps-header {
+    top: 54px; /* height of main navbar */
+  }
+  .ps-page {
+    padding-top: 54px;
+  }
+}

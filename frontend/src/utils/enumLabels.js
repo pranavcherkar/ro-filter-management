@@ -9,6 +9,7 @@ const ENUM_LABELS = {
     FILTER_SALE: "Filter Sale",
     SERVICE: "Service",
     AMC_PAYMENT: "AMC Payment",
+    PARTS_SALE: "Parts Sale",
   },
   paymentStatus: {
     PAID: "Paid",

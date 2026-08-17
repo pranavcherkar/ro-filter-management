@@ -28,13 +28,17 @@ const invoiceSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ["FILTER_SALE", "SERVICE", "AMC_PAYMENT"],
+      enum: ["FILTER_SALE", "SERVICE", "AMC_PAYMENT", "PARTS_SALE"],
       required: true,
     },
     referenceId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
     },
+
+    // Walk-in customer fields (used when no registered customer exists)
+    walkInName:  { type: String, default: null },
+    walkInPhone: { type: String, default: null },
     items: {
       type: [invoiceItemSchema],
       default: [],

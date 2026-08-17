@@ -3,7 +3,7 @@ import {
   createPartsSale,
   getPartsForSale,
   searchCustomersForSale,
-} from "../controllers/partsSale.controller.js";
+} from "../controllers/partssales.controller.js";
 import { isAuthenticated } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();

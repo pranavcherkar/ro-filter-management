@@ -10,6 +10,7 @@ import analyticsRoutes from "./routes/analytics.routes.js";
 import cookieParser from "cookie-parser";
 import connectDB from "./database/db.js";
 import inventoryRoutes from "./routes/inventory.routes.js";
+import partsSaleRoutes from "./routes/partsSale.routes.js";
 // import roinventoryRoutes from "./routes/roInventory.routes.js";
 
 dotenv.config();
@@ -36,6 +37,7 @@ app.use("/api/invoices", invoiceRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/inventory", inventoryRoutes);
+app.use("/api/parts-sale", partsSaleRoutes);
 // app.use("/api/roinventory", roinventoryRoutes);
 
 // Routes

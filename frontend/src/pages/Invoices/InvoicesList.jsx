@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../api/apiClient";
 import Loading from "../../components/Loading";
 import ErrorState from "../../components/ErrorState";
@@ -8,6 +9,8 @@ import "../../styles/invoicelist.css";
 import { getEnumLabel } from "../../utils/enumLabels";
 
 const InvoicesList = () => {
+  const navigate = useNavigate();
+
   const [invoices, setInvoices] = useState([]);
   const [business, setBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -56,8 +59,12 @@ const InvoicesList = () => {
     }
   };
 
+  // Filters are applied only via the "Apply Filters" button / pagination
+  // clicks, not automatically as filter inputs change - so this effect is
+  // intentionally run once on mount only.
   useEffect(() => {
     loadInvoices(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const applyFilters = () => {
@@ -138,7 +145,8 @@ const InvoicesList = () => {
       );
     }
 
-    const rows = inv.items.map((item, index) => [
+    // Guard against invoices that come back without an items array.
+    const rows = (inv.items || []).map((item, index) => [
       index + 1,
       item.name,
       formatMoney(item.price),
@@ -169,7 +177,9 @@ const InvoicesList = () => {
       align: "right",
     });
 
-    doc.save(`invoice_${inv.customer?.name}.pdf`);
+    // Fall back to invoice id if customer name is missing, to avoid a
+    // malformed / empty filename.
+    doc.save(`invoice_${inv.customer?.name || inv.id}.pdf`);
   };
 
   const handleDeleteInvoice = async (invoice) => {
@@ -291,6 +301,16 @@ const InvoicesList = () => {
                 >
                   Download Invoice PDF
                 </button>
+
+                {["PARTIAL", "UNPAID", "PENDING"].includes(inv.paymentStatus) && (
+                  <button
+                    className="pdf-btn"
+                    style={{ background: "linear-gradient(135deg, #6173c7, #764ba2)", color: "white", border: "none" }}
+                    onClick={() => navigate(`/invoices/${inv.id}/payment`)}
+                  >
+                    Record Payment
+                  </button>
+                )}
 
                 <button
                   className="delete-btn"

@@ -15,7 +15,8 @@ import InventoryParts from "./pages/Customers/InventoryParts";
 import Profile from "./pages/Profile";
 import Analytics from "./pages/Analytics";
 import Layout from "./components/Layout";
-
+import PartsSale from "../src/pages/Customers/PartsSale";
+import InvoiceUpdatePayment from "../src/pages/Invoices/InvoiceUpdatePayment";
 export default function App() {
   return (
     <BrowserRouter>
@@ -39,8 +40,10 @@ export default function App() {
               path="/customers/:id/services/new"
               element={<AddService />}
             />
+            <Route path="/parts-sale" element={<PartsSale />} />
             <Route path="/services" element={<ServicesList />} />
             <Route path="/invoices" element={<InvoicesList />} />
+            <Route path="/invoices/:id/payment" element={<InvoiceUpdatePayment />} />
             <Route
               path="/services/upcoming-overdue"
               element={<UpcomingOverdueServices />}

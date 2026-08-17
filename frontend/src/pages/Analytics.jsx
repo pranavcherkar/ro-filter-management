@@ -18,14 +18,20 @@ const BarChart = ({
   secondKey,
   secondColor = "#e2b96e",
 }) => {
+  const safeData = data || [];
   const max = Math.max(
-    ...data.map((d) => Math.max(d[valueKey] || 0, d[secondKey] || 0)),
+    ...safeData.map((d) => Math.max(d[valueKey] || 0, d[secondKey] || 0)),
     1,
   );
+
+  if (safeData.length === 0) {
+    return <div className="an-empty">No data yet</div>;
+  }
+
   return (
     <div className="an-barchart">
       <div className="an-bars">
-        {data.map((d, i) => (
+        {safeData.map((d, i) => (
           <div key={i} className="an-bar-col">
             <div className="an-bar-stack">
               {secondKey && (
@@ -69,10 +75,16 @@ const BarChart = ({
 // ── SVG Donut Chart ────────────────────────────────────────────────────────
 const DonutChart = ({ slices }) => {
   // slices = [{ label, value, color }]
-  const total = slices.reduce((s, x) => s + x.value, 0);
+  const safeSlices = slices || [];
+  const total = safeSlices.reduce((s, x) => s + (x.value || 0), 0);
   if (total === 0) return <div className="an-donut-empty">No data</div>;
 
-  let offset = 0;
+
+const offsets = safeSlices.reduce((acc, s) => {
+  const prevTotal = acc.length ? acc[acc.length - 1].cum : 0;
+  acc.push({ cum: prevTotal + (s.value || 0) / total });
+  return acc;
+}, []);
   const R = 60,
     cx = 70,
     cy = 70,
@@ -82,12 +94,13 @@ const DonutChart = ({ slices }) => {
   return (
     <div className="an-donut-wrap">
       <svg width="140" height="140" className="an-donut-svg">
-        {slices.map((s, i) => {
-          const pct = s.value / total;
-          const dash = pct * circumference;
-          const gap = circumference - dash;
-          const rot = offset * 360 - 90;
-          offset += pct;
+        {safeSlices.map((s, i) => {
+  const pct = (s.value || 0) / total;
+  const dash = pct * circumference;
+  const gap = circumference - dash;
+  
+  const startOffset = i === 0 ? 0 : offsets[i - 1].cum;
+  const rot = startOffset * 360 - 90;
           return (
             <circle
               key={i}
@@ -123,12 +136,12 @@ const DonutChart = ({ slices }) => {
         </text>
       </svg>
       <div className="an-donut-legend">
-        {slices.map((s, i) => (
+        {safeSlices.map((s, i) => (
           <div key={i} className="an-donut-item">
             <span className="an-legend-dot" style={{ background: s.color }} />
             <span className="an-donut-label">{s.label}</span>
             <span className="an-donut-val">
-              {Math.round((s.value / total) * 100)}%
+              {Math.round(((s.value || 0) / total) * 100)}%
             </span>
           </div>
         ))}
@@ -139,10 +152,16 @@ const DonutChart = ({ slices }) => {
 
 // ── Horizontal Bar ─────────────────────────────────────────────────────────
 const HBar = ({ items, nameKey, valueKey, color = "#6173c7" }) => {
-  const max = Math.max(...items.map((i) => i[valueKey] || 0), 1);
+  const safeItems = items || [];
+  const max = Math.max(...safeItems.map((i) => i[valueKey] || 0), 1);
+
+  if (safeItems.length === 0) {
+    return <div className="an-empty">No data yet</div>;
+  }
+
   return (
     <div className="an-hbar-list">
-      {items.map((item, i) => (
+      {safeItems.map((item, i) => (
         <div key={i} className="an-hbar-row">
           <div className="an-hbar-name">{item[nameKey]}</div>
           <div className="an-hbar-track">
@@ -204,10 +223,14 @@ const Analytics = () => {
   if (error) return <ErrorState message={error} />;
   if (!data) return null;
 
+  // Total billed revenue across all invoice types (used in the "Total
+  // Revenue" KPI below - previously computed but never actually used,
+  // with the card silently showing collected-amount instead).
   const totalRevenue =
-    data.revenueByType.FILTER_SALE +
-    data.revenueByType.SERVICE +
-    data.revenueByType.AMC_PAYMENT;
+    (data.revenueByType.FILTER_SALE || 0) +
+    (data.revenueByType.SERVICE || 0) +
+    (data.revenueByType.AMC_PAYMENT || 0) +
+    (data.revenueByType.PARTS_SALE || 0);
 
   return (
     <div className="an-page">
@@ -250,7 +273,7 @@ const Analytics = () => {
               <KpiCard
                 icon="💵"
                 label="Total Revenue"
-                value={fmtRs(data.collectionData.totalPaid)}
+                value={fmtRs(totalRevenue)}
                 sub={`${fmtRs(data.collectionData.pending)} pending`}
                 color="#6173c7"
               />
@@ -313,6 +336,11 @@ const Analytics = () => {
                       value: data.revenueByType.AMC_PAYMENT,
                       color: "#f59e0b",
                     },
+                    {
+                      label: "Parts Sale",
+                      value: data.revenueByType.PARTS_SALE || 0,
+                      color: "#8b5cf6",
+                    },
                   ]}
                 />
                 <div className="an-type-breakdown">
@@ -327,6 +355,10 @@ const Analytics = () => {
                   <div>
                     <span style={{ color: "#f59e0b" }}>●</span> AMC:{" "}
                     <strong>{fmtRs(data.revenueByType.AMC_PAYMENT)}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: "#8b5cf6" }}>●</span> Parts Sale:{" "}
+                    <strong>{fmtRs(data.revenueByType.PARTS_SALE || 0)}</strong>
                   </div>
                 </div>
               </div>
@@ -439,7 +471,7 @@ const Analytics = () => {
 
               <div className="an-card an-card-half">
                 <div className="an-card-title">Top Serviced RO Models</div>
-                {data.topRoModels.length === 0 ? (
+                {(data.topRoModels || []).length === 0 ? (
                   <div className="an-empty">No data yet</div>
                 ) : (
                   <HBar
@@ -533,7 +565,7 @@ const Analytics = () => {
 
               <div className="an-card an-card-half">
                 <div className="an-card-title">Most Replaced Parts (Top 8)</div>
-                {data.topParts.length === 0 ? (
+                {(data.topParts || []).length === 0 ? (
                   <div className="an-empty">No parts data yet</div>
                 ) : (
                   <HBar
@@ -547,7 +579,7 @@ const Analytics = () => {
             </div>
 
             {/* Parts table */}
-            {data.topParts.length > 0 && (
+            {(data.topParts || []).length > 0 && (
               <div className="an-card">
                 <div className="an-card-title">Parts Revenue Breakdown</div>
                 <table className="an-table">
@@ -586,21 +618,21 @@ const Analytics = () => {
               <KpiCard
                 icon="👤"
                 label="Filter Payment Dues"
-                value={dues.customerDues.length}
+                value={dues.customerDues?.length || 0}
                 color="#f59e0b"
                 sub="customers with unpaid filters"
               />
               <KpiCard
                 icon="📄"
                 label="Invoice Dues"
-                value={dues.invoiceDues.length}
+                value={dues.invoiceDues?.length || 0}
                 color="#6173c7"
                 sub="partial or unpaid invoices"
               />
             </div>
 
             {/* Filter sale dues */}
-            {dues.customerDues.length > 0 && (
+            {(dues.customerDues || []).length > 0 && (
               <div className="an-card">
                 <div className="an-card-title">
                   Filter Sale — Unpaid / Partial
@@ -640,9 +672,9 @@ const Analytics = () => {
                         <td className="an-due-amt">{fmtRs(c.pendingAmount)}</td>
                         <td>
                           <span
-                            className={`an-status-badge an-status-${c.status.toLowerCase()}`}
+                            className={`an-status-badge an-status-${(c.status || "unknown").toLowerCase()}`}
                           >
-                            {c.status}
+                            {c.status || "Unknown"}
                           </span>
                         </td>
                         <td>
@@ -656,7 +688,7 @@ const Analytics = () => {
             )}
 
             {/* Invoice dues */}
-            {dues.invoiceDues.length > 0 && (
+            {(dues.invoiceDues || []).length > 0 && (
               <div className="an-card">
                 <div className="an-card-title">
                   Invoice Dues — All Pending Payments
@@ -685,7 +717,7 @@ const Analytics = () => {
                         </td>
                         <td>
                           <span className="an-type-badge">
-                            {inv.type.replace("_", " ")}
+                            {(inv.type || "").replace("_", " ")}
                           </span>
                         </td>
                         <td>
@@ -701,9 +733,9 @@ const Analytics = () => {
                         </td>
                         <td>
                           <span
-                            className={`an-status-badge an-status-${inv.status.toLowerCase()}`}
+                            className={`an-status-badge an-status-${(inv.status || "unknown").toLowerCase()}`}
                           >
-                            {inv.status}
+                            {inv.status || "Unknown"}
                           </span>
                         </td>
                       </tr>
@@ -713,8 +745,8 @@ const Analytics = () => {
               </div>
             )}
 
-            {dues.customerDues.length === 0 &&
-              dues.invoiceDues.length === 0 && (
+            {(dues.customerDues || []).length === 0 &&
+              (dues.invoiceDues || []).length === 0 && (
                 <div
                   className="an-card"
                   style={{ textAlign: "center", padding: 48 }}
