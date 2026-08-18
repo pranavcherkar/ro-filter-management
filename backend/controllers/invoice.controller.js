@@ -284,3 +284,85 @@ export const deleteInvoice = async (req, res) => {
     });
   }
 };
+
+
+////// 
+export const getInvoiceById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid invoice ID" });
+    }
+
+    const invoice = await Invoice.findOne({ _id: id, userId: req.userId })
+      .populate("customerId", "name phone")
+      .lean();
+
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: "Invoice not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      invoice: {
+        id: invoice._id,
+        invoiceDate: invoice.invoiceDate,
+        type: invoice.type,
+        customerName: invoice.customerId?.name || invoice.walkInName || "Walk-in",
+        customerPhone: invoice.customerId?.phone || invoice.walkInPhone || "",
+        items: invoice.items,
+        totalAmount: invoice.totalAmount,
+        paidAmount: invoice.paidAmount,
+        pendingAmount: invoice.totalAmount - invoice.paidAmount,
+        paymentStatus: invoice.paymentStatus,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Failed to fetch invoice" });
+  }
+};
+
+export const updateInvoicePayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { additionalPaidAmount } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid invoice ID" });
+    }
+
+    const val = Number(additionalPaidAmount);
+    if (!val || val <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid payment amount" });
+    }
+
+    const invoice = await Invoice.findOne({ _id: id, userId: req.userId });
+    if (!invoice) {
+      return res.status(404).json({ success: false, message: "Invoice not found" });
+    }
+
+    const remaining = invoice.totalAmount - invoice.paidAmount;
+    if (val > remaining) {
+      return res.status(400).json({
+        success: false,
+        message: `Amount exceeds remaining balance of ₹${remaining}`,
+      });
+    }
+
+    invoice.paidAmount += val;
+    invoice.paymentStatus =
+      invoice.paidAmount >= invoice.totalAmount ? "PAID" : "PARTIAL";
+
+    await invoice.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment recorded successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Failed to record payment" });
+  }
+};
