@@ -106,7 +106,6 @@
 }
 
 .pdf-btn {
-  margin-top: 12px;
   padding: 10px 18px;
   border-radius: 8px;
   border: none;
@@ -235,9 +234,11 @@
   }
 
   .invoice-actions .pdf-btn,
-  .invoice-actions .delete-btn {
-    width: 100%;
+  .invoice-actions .delete-btn,
+  .invoice-actions button {
+    width: 100% !important;
     margin-top: 0;
     text-align: center;
+    box-sizing: border-box;
   }
 }

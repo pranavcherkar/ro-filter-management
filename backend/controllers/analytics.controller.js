@@ -288,12 +288,15 @@ export const getAnalytics = async (req, res) => {
     );
 
     // Revenue by type
-    const revenueByType = {
+       const revenueByType = {
       FILTER_SALE:
-        revenueByTypeRaw.find((r) => r._id === "FILTER_SALE")?.total || 0,
-      SERVICE: revenueByTypeRaw.find((r) => r._id === "SERVICE")?.total || 0,
+        revenueByTypeRaw.find((r) => r._id === "FILTER_SALE")?.total  || 0,
+      SERVICE:
+        revenueByTypeRaw.find((r) => r._id === "SERVICE")?.total      || 0,
       AMC_PAYMENT:
-        revenueByTypeRaw.find((r) => r._id === "AMC_PAYMENT")?.total || 0,
+        revenueByTypeRaw.find((r) => r._id === "AMC_PAYMENT")?.total  || 0,
+      PARTS_SALE:
+        revenueByTypeRaw.find((r) => r._id === "PARTS_SALE")?.total   || 0,
     };
 
     // Service type ratio
