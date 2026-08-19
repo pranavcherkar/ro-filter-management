@@ -10,7 +10,7 @@ import analyticsRoutes from "./routes/analytics.routes.js";
 import cookieParser from "cookie-parser";
 import connectDB from "./database/db.js";
 import inventoryRoutes from "./routes/inventory.routes.js";
-import partsSaleRoutes from "./routes/partsSale.routes.js";
+import partsSaleRoutes from "./routes/partssale.routes.js";
 // import roinventoryRoutes from "./routes/roInventory.routes.js";
 
 dotenv.config();
