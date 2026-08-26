@@ -3,6 +3,7 @@ import {
   login,
   logout,
   register,
+  resetPassword,
   updateOwnerProfile,
   updateProfile,
 } from "../controllers/auth.controller.js";
@@ -12,6 +13,7 @@ const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/reset-password", resetPassword);
 router.post("/logout", logout);
 router.patch("/profile", isAuthenticated, updateProfile);
 router.patch("/owner/profile", isAuthenticated, updateOwnerProfile);

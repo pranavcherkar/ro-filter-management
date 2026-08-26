@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import api from "../../api/apiClient";
 import Loading from "../../components/Loading";
 import ErrorState from "../../components/ErrorState";
@@ -18,37 +18,52 @@ const InventoryParts = () => {
   // bulk quantity per item
   const [qtyInputs, setQtyInputs] = useState({});
 
+  const loadInventory = useCallback(
+    async (forceShowAll = null) => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const endpoint =
+          type === "parts"
+            ? "/api/inventory/parts"
+            : "/api/inventory/ro-models";
+
+        const shouldShowAll =
+          forceShowAll !== null ? forceShowAll : showDiscontinued;
+
+        const res = await api.get(endpoint, {
+          params:
+            type === "ro" && shouldShowAll
+              ? { showAll: "true" }
+              : {},
+        });
+
+        const data =
+          type === "parts"
+            ? res.items || []
+            : res.models || [];
+
+        setItems(data);
+
+        const initialInputs = {};
+        data.forEach((item) => {
+          initialInputs[item._id] = "";
+        });
+
+        setQtyInputs(initialInputs);
+      } catch  {
+        setError("Failed to load inventory");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [type, showDiscontinued]
+  );
+
   useEffect(() => {
     loadInventory();
-  }, [type]);
-
-  const loadInventory = async (forceShowAll = null) => {
-    try {
-      setLoading(true);
-      const endpoint =
-        type === "parts" ? "/api/inventory/parts" : "/api/inventory/ro-models";
-
-      const shouldShowAll =
-        forceShowAll !== null ? forceShowAll : showDiscontinued;
-      const res = await api.get(endpoint, {
-        params: type === "ro" && shouldShowAll ? { showAll: "true" } : {},
-      });
-      const data = type === "parts" ? res.items || [] : res.models || [];
-
-      setItems(data);
-
-      const initialInputs = {};
-      data.forEach((item) => {
-        initialInputs[item._id] = "";
-      });
-      setQtyInputs(initialInputs);
-    } catch (err) {
-      setError("Failed to load inventory");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  }, [loadInventory]);
   const handleQuantityChange = async (id, change) => {
     try {
       const endpoint =
@@ -110,6 +125,16 @@ const InventoryParts = () => {
       loadInventory();
     } catch (err) {
       alert(err?.message || "Failed to discontinue model");
+    }
+  };
+
+  const handleDeletePart = async (id, partName) => {
+    if (!window.confirm(`Remove "${partName}" from inventory?`)) return;
+    try {
+      await api.delete(`/api/inventory/parts/${id}`);
+      loadInventory();
+    } catch (err) {
+      alert(err?.message || "Failed to remove part");
     }
   };
 
@@ -324,6 +349,26 @@ const InventoryParts = () => {
                     }}
                   >
                     Discontinue
+                  </button>
+                )}
+
+                {type === "parts" && (
+                  <button
+                    onClick={() => handleDeletePart(item._id, item.name)}
+                    style={{
+                      marginTop: 8,
+                      width: "100%",
+                      padding: "6px 0",
+                      background: "transparent",
+                      border: "1px solid #fca5a5",
+                      color: "#dc2626",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Remove
                   </button>
                 )}
               </div>
