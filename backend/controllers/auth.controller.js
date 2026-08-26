@@ -305,3 +305,53 @@ export const updateOwnerProfile = async (req, res) => {
     });
   }
 };
+
+// Admin-operated password reset — same operating model as register():
+// run directly via API tool (curl/Postman), not exposed in any UI.
+// No token/OTP flow here by design; verification layer to be added
+// later when this gets wired into a self-serve UI.
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+ 
+    if (!email || !newPassword) {
+      return res.status(400).json({
+        message: "email and newPassword are required",
+        success: false,
+      });
+    }
+ 
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: "newPassword must be at least 6 characters",
+        success: false,
+      });
+    }
+ 
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+        success: false,
+      });
+    }
+ 
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+ 
+    res.status(200).json({
+      message: "Password reset successfully",
+      success: true,
+      user: {
+        id: user._id,
+        email: user.email,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to reset password",
+      success: false,
+    });
+  }
+};

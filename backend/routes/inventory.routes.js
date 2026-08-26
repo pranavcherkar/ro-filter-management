@@ -3,6 +3,7 @@ import {
   createInventoryPart,
   getInventoryParts,
   updatePartQuantity,
+  deletePart,
 } from "../controllers/inventory.controller.js";
 import { isAuthenticated } from "../middlewares/auth.middleware.js";
 import {
@@ -17,6 +18,7 @@ const router = express.Router();
 router.get("/parts", isAuthenticated, getInventoryParts);
 router.post("/parts", isAuthenticated, createInventoryPart);
 router.patch("/parts/:id", isAuthenticated, updatePartQuantity);
+router.delete("/parts/:id", isAuthenticated, deletePart);
 //
 router.post("/ro-models", isAuthenticated, createROModel);
 router.get("/ro-models", isAuthenticated, getROModels);
